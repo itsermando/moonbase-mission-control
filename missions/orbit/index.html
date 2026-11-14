@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mission 1: Orbit | Cat on Moon</title>
+  <meta name="description" content="Design the orbit of a relay satellite that keeps the landing site in contact with Earth.">
+  <link rel="stylesheet" href="../../shared/style.css">
+  <link rel="stylesheet" href="../../shared/game.css">
+  <link rel="stylesheet" href="../../shared/shell.css">
+  <script type="importmap">
+    { "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+    } }
+  </script>
+</head>
+<body>
+  <header id="shell"></header>
+  <nav class="stagebar stages" id="stages" aria-label="Mission stages"></nav>
+  <main class="layout">
+    <div id="main"></div>
+    <aside id="side" class="stack"></aside>
+  </main>
+  <script type="module" src="./ui.js"></script>
+</body>
+</html>
