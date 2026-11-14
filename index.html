@@ -3,41 +3,50 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Mission Control | Space Mission Design Game</title>
-  <meta name="description" content="Design, test and fly three linked space missions: Earth-space link, lunar excavation rover, and orbits and satellites.">
+  <title>Moonbase Mission Control | Cat on Moon</title>
+  <meta name="description" content="A decision-based teaching game: design a relay satellite, a rover and a radio link, fly them on real NASA maps of the Moon and Mars, and learn why missions succeed or fail.">
   <link rel="stylesheet" href="shared/style.css">
   <link rel="stylesheet" href="shared/game.css">
+  <link rel="stylesheet" href="shared/shell.css">
+  <link rel="stylesheet" href="shared/hub.css">
+  <script type="importmap">
+    { "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+    } }
+  </script>
 </head>
 <body>
-  <header class="topbar"><span class="brand">Mission Control</span><span class="muted small">NASA Space Apps 2026 · Space Mission Design Game</span></header>
-  <main style="max-width:1100px;margin:0 auto;padding:20px" class="stack">
-    <section class="panel">
-      <h1>Three missions, one goal: a working Moon base</h1>
-      <p>Each mission is designed by a different engineer. They depend on each other: the rover needs the relay satellite to talk to Earth, and the satellite needs the ground link.
-      In every mission you <b>choose an objective, pick parts, test, deploy and survive</b>, then learn why it worked or failed.</p>
+  <header id="shell"></header>
+  <main class="hub">
+    <section class="hero">
+      <div id="hero-text" class="hero-text"></div>
+      <div class="hero-visual"><div id="hero-globe" class="hero-globe" aria-label="Rotating globe of the selected world, from NASA mosaics"></div><p id="hero-world" class="hero-world"></p></div>
     </section>
-    <section class="grid" id="missions"></section>
-    <section class="panel"><h2>Team score</h2><div id="team"></div></section>
 
+    <section class="panel">
+      <div class="row" style="justify-content:space-between"><h2>Your campaign</h2><span class="score-big" id="camp-score"></span></div>
+      <p class="small muted">Each mission hands its result to the next one. Fly them in order for the full story.</p>
+      <div class="track-row" id="track"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Choose your world</h2>
+      <p class="small muted">Planet pictures are NASA global mosaics (LRO, Viking, MESSENGER, Dawn) from NASA Solar System Treks.</p>
+      <div class="wgrid" id="worlds"></div>
+    </section>
+
+    <section class="panel">
+      <div class="row" style="justify-content:space-between"><h2>Crew</h2><a href="profile.html" class="small">Profiles and history →</a></div>
+      <div class="row" id="crew"></div>
+      <p class="small muted" id="crew-note"></p>
+      <label class="switch"><input type="checkbox" id="classmode"> <span><b>Class mode</b>: shorter missions with smaller targets, so a whole campaign fits in one lesson.</span></label>
+    </section>
+
+    <footer class="hubfoot small muted">
+      <p>Team Cat on Moon · NASA Space Apps Challenge 2026 · “Space Mission Design Game”. Data: NASA LRO LOLA and WAC, Mars Trek (MOLA, HRSC, CTX, Viking), MESSENGER, Dawn; constants from NASA/JPL. Built with three.js. <a href="about.html#credits">All credits</a></p>
+    </footer>
   </main>
-  <script type="module">
-    import { loadResults } from './shared/results.js';
-    const MISSIONS = [
-      { id: 'comms', n: 1, title: 'Earth-space link', text: 'Pick an instrument, then encode its data into binary and beam it to Earth before the downlink window closes.', href: 'missions/comms/index.html', ready: true },
-      { id: 'rover', n: 2, title: 'Excavation and rover', text: 'Design a rover, land on the real Shackleton crater rim and dig for ice before the lunar night.', href: 'missions/rover/index.html', ready: true },
-      { id: 'orbit', n: 3, title: 'Orbits and satellites', text: 'Calculate the orbit for a relay satellite that keeps the south pole in contact with Earth.', href: 'missions/orbit/index.html', ready: false },
-    ];
-    const res = loadResults();
-    document.getElementById('missions').innerHTML = MISSIONS.map((m) => {
-      const r = res[m.id];
-      return `<article class="card" style="cursor:default"><span class="tag ${m.ready ? 'accent' : ''}">Mission ${m.n}</span>
-        <h2 style="margin-top:8px">${m.title}</h2><p class="small">${m.text}</p>
-        ${r ? `<p class="small"><span class="tag ${r.grade === 'Mission success' ? 'good' : 'warn'}">${r.grade}</span> Best ${r.best}/100</p>` : ''}
-        ${m.ready ? `<a href="${m.href}"><button class="primary">Start mission</button></a>` : '<button disabled>In development</button>'}</article>`;
-    }).join('');
-    const scores = MISSIONS.map((m) => res[m.id]?.best || 0);
-    document.getElementById('team').innerHTML = `<p><b>${scores.reduce((a, b) => a + b, 0)}</b> / 300 points</p>
-      <p class="small muted">Scores are saved in this browser only.</p>`;
-  </script>
+  <script type="module" src="shared/hub.js"></script>
 </body>
 </html>

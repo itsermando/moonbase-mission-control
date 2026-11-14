@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Briefing Room | Cat on Moon</title>
+  <meta name="description" content="For judges and teachers: how Moonbase Mission Control works, where NASA data is used, how accurate it is, how it was tested, and a ready-to-use 45-minute lesson.">
+  <link rel="stylesheet" href="shared/style.css">
+  <link rel="stylesheet" href="shared/game.css">
+  <link rel="stylesheet" href="shared/shell.css">
+  <link rel="stylesheet" href="shared/hub.css">
+</head>
+<body>
+  <header id="shell"></header>
+  <main class="page">
+    <div class="row" style="justify-content:space-between"><h1 style="margin:0">Briefing Room</h1><a href="index.html">← Mission control</a></div>
+    <nav class="tabs noprint" aria-label="Sections"><a href="#judges" data-t="judges">For judges</a><a href="#teachers" data-t="teachers">For teachers</a><a href="#credits" data-t="credits">Data and credits</a></nav>
+
+    <section class="panel qa" data-tab="judges" id="judges">
+      <h2>Moonbase Mission Control in one minute</h2>
+      <p><b>Every choice has a cost. Our game shows you why.</b> Players design and fly a complete space mission in three linked parts: <b>1. Orbit</b> (place a relay satellite), <b>2. Rover</b> (land and dig or sample), <b>3. Comms</b> (send the science home). Each mission’s result is the next one’s starting point, so decisions ripple through the whole campaign, just like on a real mission.</p>
+
+      <h3>Who is it for?</h3>
+      <p>Students from about age 12 to first-year university, their teachers, and science clubs. It runs free in any modern browser: no install, no account. Up to four players share a crew, each with a role (mission lead, engineer, scientist, comms officer). Class mode shortens every mission so a full campaign fits in one lesson.</p>
+
+      <h3>How does it answer the challenge?</h3>
+      <table>
+        <tr><th>The challenge asks for</th><th>Where it is in the game</th></tr>
+        <tr><td>Define an objective and requirements</td><td>Every mission starts with a briefing and a goal; the rover has three difficulty levels per world.</td></tr>
+        <tr><td>Design a spacecraft and choose instruments</td><td>Mission 1: rocket, antenna, solar wings. Mission 2: seven rover parts, including a neutron spectrometer, drills and an RTG.</td></tr>
+        <tr><td>Choose a launch vehicle and an orbit, check compatibility</td><td>Mission 1: three launchers with payload limits that shrink for farther worlds; orbit sliders and real-mission presets; a test campaign blocks a launch that is too heavy, over budget, under-powered or too low.</td></tr>
+        <tr><td>Manage budget, mass, power, communications, data and lifetime</td><td>Live meters in every mission; battery, sunlight and link status during deploy; data volume and contact time in Mission 3.</td></tr>
+        <tr><td>Consequences for every decision; no single perfect answer</td><td>Every part shows its mass, cost and power change. Automated tests show different designs can each win, and bad ones really fail.</td></tr>
+        <tr><td>Simulation, evaluation and feedback on why</td><td>3D simulations, random events, and a debrief with a score, the reasons, badges and “Why it went this way” lessons.</td></tr>
+        <tr><td>Team play for up to four</td><td>A crew of up to four profiles; roles label each design decision; everyone earns XP. (Shared screen, not online.)</td></tr>
+        <tr><td>Difficulty levels, scenarios, random events, dashboards, reports, leaderboards</td><td>Easy/Medium/Hard; Moon, Mars, Mercury and Ceres; dust, stuck wheels, solar flares and more; HUDs; debriefs; profiles with medals and history.</td></tr>
+      </table>
+
+      <h3>Where does NASA data do real work?</h3>
+      <table>
+        <tr><th>Mission</th><th>NASA data or resource</th><th>What it decides</th></tr>
+        <tr><td>1 Orbit</td><td>Planet masses (GM) and radii from NASA/JPL; real orbits of LRO, Gateway (NRHO), MRO, MAVEN, MESSENGER and Dawn as presets</td><td>Orbit period, speed, braking burn, fuel and contact time with the base, computed with Kepler’s laws. Our model gives LRO a 113-minute orbit (real: about 2 hours) and MRO 112.8 minutes (real: 112).</td></tr>
+        <tr><td>2 Rover (Moon)</td><td>LRO LOLA laser-altimeter slope and elevation of Shackleton crater’s rim, via NASA Moon Trek</td><td>Where a lander may touch down, where each rover can drive, how long each move takes. Shackleton’s walls are steeper than 20°, so no wheeled rover can reach the icy floor: players must engineer a tether or a walker.</td></tr>
+        <tr><td>2 Rover (Mars)</td><td>MGS MOLA + Mars Express HRSC relief and MRO CTX images of Jezero crater, via NASA Mars Trek</td><td>The map, the river delta, rim and floor sample sites, and routes. Heights are read from a colour map, so they are approximate and labelled as such.</td></tr>
+        <tr><td>3 Comms</td><td>Signal delay from real Earth distances; NASA’s Deep Space Network stations</td><td>How long messages take and which station is listening.</td></tr>
+        <tr><td>All</td><td>NASA global mosaics: LRO WAC (Moon), Viking (Mars), MESSENGER (Mercury), Dawn (Ceres)</td><td>The 3D globes and the solar-system map.</td></tr>
+      </table>
+
+      <h3>How accurate is it?</h3>
+      <p><b>Real data:</b> lunar terrain, slopes and heights (LOLA, averaged to 333 m squares); planet constants; orbit physics (two-body Kepler orbits and the rocket equation, the same first step NASA’s GMAT tool starts from).
+      <b>Game models, labelled in the game:</b> sunlight at the lunar pole, ice amounts (guided by LCROSS’s 5.6% water measurement), cold-trap locations, Earth visibility, Mars heights, noise levels and part costs. They are simplified so a student can reason about them, not to plan a real mission.</p>
+
+      <h3>How do we know it works?</h3>
+      <ul>
+        <li><b>30 automated tests</b> run on every change: orbit physics against real missions, terrain rules, design limits, the parity code and the hand-offs between missions. A robot player wins all three Moon objectives and the hardest Mars objective with sensible rovers, while badly designed rovers really fail.</li>
+        <li><b>Playtest:</b> a teacher tested an earlier version. His suggestions shaped this one: three connected missions, player profiles, class mode, and clearer feedback.</li>
+        <li><b>Data checked twice:</b> the terrain was sampled in two independent ways and matched exactly.</li>
+      </ul>
+
+      <h3>Privacy, safety and accessibility</h3>
+      <p>No accounts, no tracking, no data leaves the device: profiles and scores live in the browser’s local storage. Everything is keyboard-playable (press <span class="kbd">?</span> for shortcuts), colours always come with words, motion respects “reduce motion”, and the 3D rover view has a 2D map alternative. The 3D library loads from a public CDN; the rest works offline.</p>
+
+      <h3>What’s next?</h3>
+      <p>Classroom trials with more teachers; NASA’s measured lunar illumination maps to replace our sunlight model; online team play; more worlds for the rover.</p>
+
+      <h3>Use of AI</h3>
+      <p>The team chose the idea, the missions and the design decisions. We used an AI coding assistant as a tool to help write and test code to our specification and to draft text. No AI-generated images or sounds are used.</p>
+    </section>
+
+    <section class="panel qa" data-tab="teachers" id="teachers">
+      <h2>A ready-to-use 45-minute lesson</h2>
+      <h3>Learning goals</h3>
+      <ul>
+        <li>Engineering trade-offs: every gain in one resource (science, speed) costs another (mass, power, money, time).</li>
+        <li>Physics: Kepler’s laws (satellites move slowest at their highest point), the rocket equation, energy budgets with solar and nuclear power.</li>
+        <li>Earth and space science: why ice survives in permanently shadowed craters; day and night on the Moon and Mars; how slopes limit rovers.</li>
+        <li>Computing: binary, bits and bytes, compression, and error detection with parity bits.</li>
+        <li>Decision making and teamwork: agreeing on a design under constraints, then learning from the outcome.</li>
+      </ul>
+      <h3>Plan</h3>
+      <table>
+        <tr><th>Time</th><th>What happens</th></tr>
+        <tr><td>0–8 min</td><td>Hook: show the hub and ask “Every choice has a cost: what could a heavier antenna cost you?” Turn on <b>class mode</b> and create one profile per student or team.</td></tr>
+        <tr><td>8–16 min</td><td>Mission 1, Orbit, in crews of 2–4. Challenge: reach the contact goal with the cheapest design.</td></tr>
+        <tr><td>16–30 min</td><td>Mission 2, Rover. Each crew agrees on a rover before launch (roles label who owns which part).</td></tr>
+        <tr><td>30–37 min</td><td>Mission 3, Comms: compression or parity? Decode Earth’s reply.</td></tr>
+        <tr><td>37–45 min</td><td>Debrief: crews compare medals and “Why it went this way”; discuss the questions below.</td></tr>
+      </table>
+      <h3>Discussion questions</h3>
+      <ol>
+        <li>Why can’t a wheeled rover drive into Shackleton crater? What did your crew do instead?</li>
+        <li>Your relay satellite spends more time over the base when its highest point is above it. Why?</li>
+        <li>Why do Curiosity and Perseverance use a nuclear RTG instead of solar panels?</li>
+        <li>Parity adds bits but catches errors. When is that worth it?</li>
+        <li>Which decision would you change first if you flew again, and why?</li>
+      </ol>
+      <div class="row noprint"><label class="switch" style="margin:0"><input type="checkbox" id="cm"> <span><b>Class mode</b> on this device</span></label>
+        <button class="primary" id="csv">Export class results (CSV)</button><button id="print">Print the worksheet</button></div>
+      <p class="small muted noprint" id="csvmsg">The CSV has every profile on this device: name, group, level, and each mission’s score and medal.</p>
+
+      <div class="worksheet" id="worksheet">
+        <h2>Moonbase Mission Control · Worksheet</h2>
+        <p>Name / crew: <span class="line" style="display:inline-block;width:60%"></span></p>
+        <h3>1. Orbit</h3><p>Our orbit: lowest point ____ km, highest point ____ km, above the ____ pole. Contact with the base: ____ %.</p><p>One thing that made the satellite heavier, and why it mattered:</p><div class="line"></div>
+        <h3>2. Rover</h3><p>Our power choice: ________ Why?</p><div class="line"></div><p>The biggest surprise during the mission, and what we decided:</p><div class="line"></div>
+        <h3>3. Comms</h3><p>We chose ______ compression and ______ error check. Earth’s command was: ________</p><p>Write your initial as 5 bits (A = 00001): ___________</p>
+        <h3>Reflection</h3><p>“Every choice has a cost.” Give one example from your mission:</p><div class="line"></div><div class="line"></div>
+      </div>
+    </section>
+
+    <section class="panel qa" data-tab="credits" id="credits">
+      <h2>Data and credits</h2>
+      <h3>NASA data</h3>
+      <ul>
+        <li>Moon terrain: LRO LOLA south-pole slope and elevation products (87.5°S, 5 m/px) and the Site04 Shackleton Rim hillshade, NASA Moon Trek.</li>
+        <li>Mars terrain: MGS MOLA + Mars Express HRSC colour hillshade (200 m/px) and MRO CTX Jezero mosaic, NASA Mars Trek.</li>
+        <li>Globes: LRO WAC global mosaic, Viking MDIM 2.1 colour mosaic, MESSENGER MDIS enhanced-colour mosaic, Dawn FC colour-shaded mosaic, NASA Solar System Treks.</li>
+        <li>Planet constants (GM, radius, day length) from NASA/JPL planetary data; mission facts from NASA mission pages (LRO, LCROSS, VIPER, RASSOR, Perseverance, Ingenuity, MRO, MAVEN, MESSENGER, Dawn, Gateway, Deep Space Network).</li>
+        <li>Challenge resources used for the design: NASA “Design and Develop Science Missions”, JPL Concept Maturity Levels, NASA GSFC Mission Design Lab study stages, NASA GMAT.</li>
+      </ul>
+      <h3>Software</h3>
+      <p>three.js r170 (MIT licence) via the jsDelivr CDN. All other code, the cat illustrations and the sound effects (generated in the browser) are the team’s own. Fonts: the device’s system fonts.</p>
+      <h3>Team</h3>
+      <p>Cat on Moon, NASA Space Apps Challenge 2026. Mission 3’s signal-encoding game is based on Jeongha’s design.</p>
+    </section>
+  </main>
+  <script type="module">
+    import { mountShell } from './shared/shell.js';
+    import { exportCSV } from './shared/profile.js';
+    import { isClassMode, setClassMode } from './shared/campaign.js';
+    mountShell({ base: '' });
+    const show = () => {
+      const t = (location.hash || '#judges').slice(1);
+      document.querySelectorAll('[data-tab]').forEach((s) => { s.hidden = s.dataset.tab !== t; });
+      document.querySelectorAll('.tabs a').forEach((a) => a.classList.toggle('on', a.dataset.t === t));
+    };
+    window.addEventListener('hashchange', show); show();
+    const cm = document.getElementById('cm'); cm.checked = isClassMode(); cm.onchange = () => setClassMode(cm.checked);
+    document.getElementById('csv').onclick = () => {
+      const blob = new Blob([exportCSV()], { type: 'text/csv' }), a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = 'cat-on-moon-results.csv'; a.click(); URL.revokeObjectURL(a.href);
+      document.getElementById('csvmsg').textContent = 'Downloaded cat-on-moon-results.csv.';
+    };
+    document.getElementById('print').onclick = () => { document.getElementById('teachers').classList.add('printme'); window.print(); };
+  </script>
+</body>
+</html>

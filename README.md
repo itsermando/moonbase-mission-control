@@ -1,88 +1,62 @@
 # Moonbase Mission Control
 
-NASA Space Apps Challenge 2026 · Challenge: **Space Mission Design Game** · Team [Team name], Budapest
+**Every choice has a cost. Our game shows you why.**
 
-A role-playing survival game. Players design, test and fly three linked missions under real limits on mass, power, money, communications and time. In every mission they:
+NASA Space Apps Challenge 2026 · Challenge: *Space Mission Design Game* · Team **Cat on Moon**, Budapest
 
-1. **Briefing**: choose an objective (easy, medium, hard)
-2. **Site**: pick where to go on a real NASA map
-3. **Build**: pick parts. Every part costs mass, money and power
-4. **Test**: pay for a test campaign. Blockers stop launch; warnings are risks
-5. **Deploy**: survive surprises with limited resources
-6. **Debrief**: a score out of 100 and an explanation of why it worked or failed
+A decision-based teaching game. Players design and fly a complete space mission in three linked parts, on real NASA maps, and learn from every result:
 
-A rule-based guide called **CAPCOM** explains *why* each choice matters, with a glossary.
+| # | Mission | You decide | Hands on to the next mission |
+|---|---|---|---|
+| 1 | **Orbit**: place the relay satellite | Rocket, antenna, solar power, orbit shape; a timed capture burn | Relay contact windows |
+| 2 | **Rover**: land and dig (Moon) or core samples (Mars) | Landing site, 7 rover parts, every move | Science data packets |
+| 3 | **Comms**: send the science home | Packet order, compression, parity check; encode bits, decode Earth's reply | Final campaign score |
 
-| Mission | Owner | Status |
-|---|---|---|
-| 1. Earth-space link ("Signal Encoding") | Jeongha | playable |
-| 2. Excavation and rover ("Operation Regolith") | [name] | playable |
-| 3. Orbits and satellites | [name] | in development |
+Every mission has the same six-stage loop (briefing → design → test → deploy → debrief), a guide called **CAPCOM Whiskers**, random events, and a debrief that explains *why* it worked or failed.
+
+**Play:** https://itsermando.github.io/moonbase-mission-control/
+
+## Features
+- **Worlds:** the Moon (main campaign, Shackleton crater from NASA LRO LOLA data), Mars (bonus campaign, Jezero crater from NASA Mars Trek), and Mercury and Ceres as orbit challenges. Globes use NASA global mosaics.
+- **3D:** three.js globes for orbit design and a 3D rover view on the real terrain, with a 2D map fallback.
+- **Profiles:** up to 4 crew members per game, with XP, ranks, medals, badges and a history of decisions. Stored only in the browser.
+- **Class mode:** shorter missions so a whole campaign fits in a 45-minute lesson. The Briefing Room has a lesson plan, discussion questions, a printable worksheet and a CSV export of results.
+- **Briefing Room** (`about.html`): answers for judges (audience, challenge fit, NASA data, accuracy, testing, privacy, accessibility, AI use) and teachers.
 
 ## Run it
-
 No build step. Any static web server works (ES modules don't load from `file://`):
 
 ```bash
 python -m http.server 5173
 ```
 
-Then open http://localhost:5173. Tests: `npm test` (Node 20+).
+Open http://localhost:5173. Tests: `npm test` (Node 20+): 30 tests covering orbit physics against real missions, terrain rules, design limits, Mars rules, the parity code and the hand-offs between missions.
 
-## Mission 1: Earth-space link
-
-Choose an instrument (temperature sensor, standard camera or HD camera), then encode its data into binary before the downlink window closes: press `O` for 0 and `X` for 1. Each packet makes the clock run faster; a wrong bit costs 3 seconds and 5 errors end the transmission. Files: `missions/comms/` (`connection.js` game logic, `style.css`, `result.js` saves the score to the hub).
-
-## Mission 2: Operation Regolith
-
-Land a rover on the rim of Shackleton crater at the lunar south pole and dig for regolith or water ice for 14 days before the lunar night.
-
-- **Real terrain.** A 48 × 48 grid (about 333 m per cell) built from NASA LRO LOLA slope and elevation products, Site04 "Shackleton Rim". Shackleton's walls are steeper than 20°, so wheels alone can't reach the icy floor. Players need a tether or a walker.
-- **Seven design slots**: mobility, power, excavator, thermal, comms, ice finder, special kit. Lander capacity is 450 kg and the budget $400M, so no rover can take every best part.
-- **Survival**: battery, about -200 °C shadows, fault protection, and random events (stuck wheel, dust, solar flare, heater fault, buried rock). With no link to Earth, the rover picks the default action.
-- **3D Moon (three.js)**: the real elevation becomes a 3D terrain with the game map draped over it. A low polar Sun circles the horizon and casts long shadows, Earth hangs low in the sky, and the rover (built from the parts you chose) drives, digs and scans with dust and pulse effects. Includes a powered-descent landing. A 2D map is always one click away, and is used automatically if three.js can't load.
-- **Controls**: hover the ground to preview a route with its time and energy cost; click to plan and click again to drive. `W A S D` / arrow keys drive one square, `Space` digs, `F` scans, `R` rests, `Enter` drives the plan, `Esc` clears it. Sound effects can be muted.
-- **Tests** (`tests/`): a robot player wins all three objectives with a sensible design, and a blankets-only rover freezes in the crater.
-
-### Files
-
-| File | What it does |
+## Project layout
+| Path | What it is |
 |---|---|
-| `missions/rover/parts.js` | Objectives, limits, parts catalogue |
-| `missions/rover/world.js` | Terrain, sunlight, ice, comms, pathfinding |
-| `missions/rover/engine.js` | Game rules and scoring (no screen code) |
-| `missions/rover/events.js` | Random events |
-| `missions/rover/capcom.js` | Test checks and CAPCOM hints |
-| `missions/rover/game.js`, `deploy.js`, `debrief.js`, `map.js` | Screens |
-| `missions/rover/scene3d.js`, `rover-model.js` | three.js terrain, rover, lander and effects |
-| `shared/fx.js`, `shared/game.css` | Sounds, toasts, game styling |
-| `scripts/build_terrain.py` | Rebuilds `data/terrain.js` and the map pictures from NASA Moon Trek |
+| `index.html`, `shared/hub.js` | Mission control hub: globe, campaign track, worlds, crew, class mode |
+| `profile.html`, `about.html` | Profiles; Briefing Room for judges and teachers |
+| `shared/` | HUD shell, profiles, campaign hand-offs, worlds and constants, globe, sounds, styles |
+| `missions/orbit/` | Mission 1: two-body orbit physics (`orbit.js`), catalogue (`data.js`), screens (`ui.js`) |
+| `missions/rover/` | Mission 2: worlds and terrain, engine, events, CAPCOM, screens, 3D scene |
+| `missions/comms/` | Mission 3: signal maths (`codec.js`) and screens (`comms.js`) |
+| `scripts/` | Rebuild terrain and planet textures from NASA Trek tiles |
+| `tests/` | Automated tests |
 
-## For teammates: add your mission
+## NASA data
+- **Moon:** LRO LOLA 87.5°S slope and elevation products (5 m/px) and Site04 Shackleton Rim hillshade; LRO WAC global mosaic. NASA Moon Trek.
+- **Mars:** MGS MOLA + Mars Express HRSC colour hillshade (heights read from colour, approximate) and MRO CTX Jezero mosaic; Viking MDIM 2.1 global mosaic. NASA Mars Trek.
+- **Mercury and Ceres:** MESSENGER MDIS and Dawn FC global mosaics. NASA Solar System Treks.
+- **Constants:** planet GM, radius and day length from NASA/JPL; real-mission orbits (LRO, Gateway NRHO, MRO, MAVEN, MESSENGER, Dawn) used as presets.
+- **Reference figures:** VIPER, RASSOR, TRIDENT, MMRTG, LCROSS (about 5.6% water), Perseverance, Deep Space Network.
+- **Challenge resources:** NASA *Design and Develop Science Missions*, JPL *Concept Maturity Levels*, NASA GSFC *Mission Design Lab*, NASA GMAT.
 
-1. Create `missions/<your-id>/index.html` and link `../../shared/style.css` so it looks the same.
-2. Follow the same six stages and use the `.panel`, `.card`, `.meter`, `.capcom` classes.
-3. At the end, call `saveResult('<your-id>', { score, grade, summary })` from `shared/results.js`. The hub reads it.
-4. Share values between missions with `shareValue` / `readShared`. Example: the orbit mission can publish the relay pass schedule (`relayPasses`) and the rover can read it instead of its built-in "4 hours in every 12".
-5. Set `ready: true` for your mission in `index.html`.
+Sunlight, ice amounts, Earth visibility, Mars heights, noise and costs are simplified game models and are labelled as such in the game.
 
-## NASA data and resources
-
-- **LRO LOLA** south-pole products (87.5°S, 5 m/px): `ColorSlope_10below/15below/20above_LRO_LOLA_DEM_SPole875_5m`, `ColorSlope_LRO_LOLA_DEM_SPole875_5mp_v04`, `LRO_LOLA_Gray_SPole875_5mp_v04`, and `Site04_final_adj_5mpp_Hillshade`, all from [NASA Moon Trek WMTS](https://trek.nasa.gov/tiles/apidoc/trekAPI.html?body=moon).
-- Challenge resources used for the design: NASA *Design and Develop Science Missions* (mission segments), JPL *Concept Maturity Levels*, NASA GSFC *Mission Design Lab* study stages, and GMAT for the orbit mission.
-- Real hardware the parts are modelled on: NASA VIPER (wheel-walking, neutron spectrometer), NASA RASSOR (bucket drums), Honeybee Robotics TRIDENT (drill), MMRTG (about 110 W). Ice levels are guided by the LCROSS result (about 5.6% water by mass in Cabeus crater).
-
-**Simplified on purpose:** sunlight percentages, cold-trap locations (local low spots in the LOLA elevation), ice amounts and Earth visibility are game models based on the terrain, not measurements. The game says so on screen.
+## Team and credits
+Team Cat on Moon. Mission 3's signal-encoding game is based on Jeongha's design.
+Software: three.js r170 (MIT) via jsDelivr. Cat illustrations and sound effects are original (drawn as SVG and generated with Web Audio).
 
 ## Use of AI
-
-The team chose the idea and the design decisions. We used an AI coding assistant as a tool to:
-- research NASA data sources and check that the Moon Trek tiles can be used,
-- write code for Mission 2 to the team's specification,
-- draft the presentation slides.
-
-The team reviewed, tested and edited everything. No AI-generated images or audio are used.
-
-## Credits
-
-NASA Moon Trek / LRO LOLA data (public domain). [three.js](https://threejs.org) r170 (MIT licence), loaded from the jsDelivr CDN. Sound effects are generated in the browser (Web Audio), no audio files. Fonts in the deck: Space Grotesk and Inter (SIL Open Font License).
+The team chose the idea, the missions and the design decisions. We used an AI coding assistant as a tool to help write and test code to our specification and to draft text. No AI-generated images or audio are used.

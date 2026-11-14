@@ -88,3 +88,12 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .codegrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; margin-top: 8px; font-family: var(--mono); font-size: 14px; }
 .codegrid span { background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; }
 .mission-1 .bit.parity { border-style: dashed; border-color: var(--gold); }
+/* compact HUD on phones and narrow windows */
+@media (max-width: 700px) {
+  .shell { gap: 8px; padding: 6px 10px; }
+  .shell .logo small, .shell .score-chip, .shell a.icon, .shell .chip.world { display: none; }
+  .shell .node { padding: 3px 8px 3px 3px; font-size: 12px; }
+  .shell .track .link { width: 10px; }
+  .layout { padding: 12px; gap: 12px; }
+  .hero { min-height: 0; }
+}

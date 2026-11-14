@@ -12,6 +12,9 @@ function load() {
 }
 function save(s) { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* storage blocked */ } }
 
+/** Names are shown on screen: keep them plain text. */
+const safe = (v, n) => String(v || '').replace(/[<>&"'`]/g, '').trim().slice(0, n);
+
 export function levelOf(xp) {
   let lv = 0; while (lv + 1 < LEVELS.length && xp >= LEVELS[lv + 1]) lv++;
   const next = LEVELS[lv + 1];
@@ -27,9 +30,9 @@ export const getProfile = (id) => load().profiles[id] || null;
 
 export function createProfile({ name, avatar = 0, role = ROLES[0], group = '' }) {
   const s = load();
-  const clean = String(name || '').trim().slice(0, 24) || 'Cadet';
+  const clean = safe(name, 24) || 'Cadet';
   const id = 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-  s.profiles[id] = { id, name: clean, avatar: Number(avatar) % AVATARS, role, group: String(group).trim().slice(0, 30),
+  s.profiles[id] = { id, name: clean, avatar: Number(avatar) % AVATARS, role, group: safe(group, 30),
     created: new Date().toISOString(), xp: 0, runs: [], best: {}, badges: [] };
   if (s.crew.length < 4) s.crew.push(id);
   save(s);
@@ -38,7 +41,7 @@ export function createProfile({ name, avatar = 0, role = ROLES[0], group = '' })
 
 export function updateProfile(id, patch) {
   const s = load(); if (!s.profiles[id]) return null;
-  for (const k of ['name', 'avatar', 'role', 'group']) if (k in patch) s.profiles[id][k] = patch[k];
+  for (const k of ['name', 'avatar', 'role', 'group']) if (k in patch) s.profiles[id][k] = k === 'name' || k === 'group' ? safe(patch[k], k === 'name' ? 24 : 30) : patch[k];
   save(s); return s.profiles[id];
 }
 
