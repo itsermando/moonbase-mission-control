@@ -8,6 +8,8 @@ import { whiskersSVG } from '../../shared/cat.js';
 import { sfx, toast } from '../../shared/fx.js';
 import { lightDelayText } from '../../shared/worlds.js';
 import { playClip } from '../../shared/music.js';
+import { treeHTML } from '../../shared/tree.js';
+import { aiNote } from '../../shared/llm.js';
 
 const $ = (s) => document.querySelector(s);
 const world = getWorld();
@@ -59,8 +61,14 @@ function briefing() {
 /* ---------- 2 Plan ---------- */
 function plan(focus) {
   const tot = C.planTotals(chosen(), comp(), check());
-  const est = Math.round(WINDOW_S * 2.2); // a typical player types about 2 bits per second
+  const est = Math.round(WINDOW_S * C.TYPE_BPS); // a typical player types about 2 bits per second
+  const adv = C.planChoices(PACKETS, { windowS: WINDOW_S, noise: C.NOISE[wid] });
+  const advHTML = adv.choices.length ? `<details class="analyst" open><summary><b>Mission analyst</b>: ${adv.choices.length} plans, calculated before you decide</summary>
+    ${treeHTML({ question: 'Which plan do you want to start from?', attr: 'plan', note: 'Calculated from your window, the noise on this world and typing speed. You can still change anything after loading a plan.',
+      options: adv.choices.map((c) => ({ id: c.id, title: c.title, recommended: c.recommended, summary: c.summary, branches: c.branches, button: 'Use this plan',
+        expected: `Predicted: ${c.metrics.bits} of about ${c.metrics.budget} typeable bits, ${c.metrics.timeLeftS} s to spare.` })) })}</details>` : '';
   $('#main').innerHTML = `<section class="panel stack"><h1>Plan the downlink</h1><p>Pick what to send and in what order. Anything you don’t finish before the window closes stays on the rover.</p>
+    <div id="analyst">${advHTML}</div>
     <h2>Data packets</h2><div class="stack" style="gap:8px">${S.order.map((id, n) => {
       const p = PACKETS.find((x) => x.id === id), off = S.skip.has(id);
       return `<div class="choice ${off ? '' : 'on'}" style="flex-direction:row;align-items:center;gap:12px;cursor:default">
@@ -88,9 +96,15 @@ function plan(focus) {
     if (b.dataset.down) { move(b.dataset.down, 1); sfx.click(); plan(S.order[S.order.length - 1] === b.dataset.down ? `[data-up="${b.dataset.down}"]` : `[data-down="${b.dataset.down}"]`); }
     if (b.dataset.comp) { S.comp = b.dataset.comp; sfx.select(); plan(`[data-comp="${b.dataset.comp}"]`); }
     if (b.dataset.check) { S.check = b.dataset.check; sfx.select(); plan(`[data-check="${b.dataset.check}"]`); }
+    if (b.dataset.plan) {
+      const c = adv.choices.find((x) => x.id === b.dataset.plan);
+      if (c) { S.order = [...c.plan.order]; S.skip = new Set(c.plan.skip); S.comp = c.plan.comp; S.check = c.plan.check; sfx.select(); plan('#next'); }
+    }
     if (b.id === 'back') go(0);
     if (b.id === 'next') { sfx.click(); go(2); }
   };
+  if (adv.choices.length) aiNote($('#analyst .analyst'), 'comms-plan', adv.choices.map((c) => [c.title + (c.recommended ? ' (analyst pick)' : ''),
+    `${c.metrics.clean} science points if clean, ${c.metrics.timeLeftS} s to spare, ${c.plan.check === 'parity' ? 'parity on' : 'no error check'}`]));
   if (focus) $(focus)?.focus();
 }
 

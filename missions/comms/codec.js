@@ -55,6 +55,70 @@ export function planTotals(packets, compression, check) {
   return { bits, value: Math.round(value) };
 }
 
+export const TYPE_BPS = 2.2; // a typical player types about 2 bits per second
+
+/**
+ * Expected result of a plan, calculated before the player commits (the maths the analyst shows).
+ * packets are in send order. Packets are sent whole and in order, so once one does not fit, nothing after it is sent.
+ * With parity every flipped byte is caught and retyped (more bits, no damage); without it a flip silently ruins the packet.
+ */
+export function forecastPlan({ packets, compression, check, windowS, noise }) {
+  const parity = check.id === 'parity', budget = windowS * TYPE_BPS;
+  let used = 0, valueIfClean = 0, valueExpected = 0, pAllClean = 1, fits = true;
+  const sent = [], dropped = [];
+  for (const p of packets) {
+    let bits = 0, pOk = 1;
+    for (const byte of packetBytes(p, compression)) {
+      const len = byte.length + (parity ? 1 : 0), pFlip = 1 - (1 - noise) ** len;
+      if (parity) bits += len / (1 - pFlip); else { bits += len; pOk *= 1 - pFlip; }
+    }
+    if (!fits || used + bits > budget) { fits = false; dropped.push(p.id); continue; }
+    used += bits; sent.push(p.id);
+    const v = p.value * compression.valueX;
+    valueIfClean += v; valueExpected += v * pOk; pAllClean *= pOk;
+  }
+  return { sent, dropped, bitsNeeded: used, budget, timeLeftS: Math.max(0, (budget - used) / TYPE_BPS), valueIfClean, valueExpected, pAllClean };
+}
+
+/** Up to three different plans that all fit the window: most science, safest, and quickest. Uses only forecastPlan. */
+export function planChoices(packets, { windowS, noise }) {
+  const maxValue = packets.reduce((a, p) => a + p.value, 0) || 1;
+  const byDensity = [...packets].sort((a, b) => b.value / b.bits - a.value / a.bits);
+  const sciOf = (v) => Math.round(60 * Math.min(1, v / maxValue));
+  const cands = [];
+  for (const comp of COMPRESSION) for (const check of CHECKS) for (let k = 1; k <= byDensity.length; k++) {
+    const chosen = byDensity.slice(0, k);
+    const f = forecastPlan({ packets: chosen, compression: comp, check, windowS, noise });
+    if (f.dropped.length) continue;
+    cands.push({ key: `${comp.id}|${check.id}|${k}`, comp, check, chosen, f, sci: sciOf(f.valueExpected) });
+  }
+  if (!cands.length) return { choices: [], maxValue };
+  const used = new Set();
+  const take = (pool, cmp) => { const c = pool.filter((x) => !used.has(x.key)).sort(cmp)[0]; if (c) used.add(c.key); return c; };
+  const best = Math.max(...cands.map((c) => c.sci));
+  const picks = [
+    ['science', 'Most science', take(cands, (a, b) => b.sci - a.sci || b.f.timeLeftS - a.f.timeLeftS), 'The highest expected science that fits the window.'],
+    ['safe', 'Safe and clean', take(cands.filter((c) => c.check.id === 'parity'), (a, b) => b.sci - a.sci || b.f.timeLeftS - a.f.timeLeftS), 'Parity on every byte, so noise cannot silently ruin a packet.'],
+    ['quick', 'Quick and light', take(cands.filter((c) => c.sci >= best * 0.7), (a, b) => b.f.timeLeftS - a.f.timeLeftS || b.sci - a.sci), 'Keeps at least 70% of the best science and leaves the most time spare.'],
+  ];
+  const choices = picks.filter(([, , c]) => c).map(([id, title, c, why]) => {
+    const f = c.f, clean = sciOf(f.valueIfClean), pDamaged = 1 - f.pAllClean;
+    const damaged = pDamaged > 0.0001 ? sciOf((f.valueExpected - f.pAllClean * f.valueIfClean) / pDamaged) : clean;
+    const branches = c.check.id === 'parity'
+      ? [{ text: `Every byte checked: ${clean} science points, about ${Math.round(f.timeLeftS)} s to spare`, tone: 'good' }]
+      : [{ p: f.pAllClean, text: `Every packet arrives intact: ${clean} science points`, tone: 'good' },
+         { p: pDamaged, text: `Noise ruins a packet: about ${damaged} points`, tone: 'bad' }].filter((b) => b.p >= 0.005);
+    return {
+      id, title, why, sci: c.sci, metrics: { bits: Math.round(f.bitsNeeded), budget: Math.round(f.budget), timeLeftS: Math.round(f.timeLeftS), clean, damaged },
+      plan: { order: [...c.chosen.map((p) => p.id), ...packets.filter((p) => !c.chosen.includes(p)).map((p) => p.id)], skip: packets.filter((p) => !c.chosen.includes(p)).map((p) => p.id), comp: c.comp.id, check: c.check.id },
+      summary: `${c.chosen.length} of ${packets.length} packets, ${c.comp.name.toLowerCase()}, ${c.check.id === 'parity' ? 'parity on' : 'no error check'}. ${why}`,
+      branches, recommended: false,
+    };
+  });
+  if (choices.length) choices.reduce((a, b) => (b.sci > a.sci ? b : a)).recommended = true;
+  return { choices, maxValue };
+}
+
 /** 5-bit letter code: A=00001 ... Z=11010 (like early teleprinter codes, simplified). */
 export const encodeLetter = (ch) => (ch.toUpperCase().charCodeAt(0) - 64).toString(2).padStart(5, '0');
 export const decodeGroup = (bits) => String.fromCharCode(64 + parseInt(bits, 2));

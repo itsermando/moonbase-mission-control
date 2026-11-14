@@ -8,6 +8,10 @@ import { getWorld, getWorldId, saveMission, isClassMode } from '../../shared/cam
 import { awardRun } from '../../shared/profile.js';
 import { whiskersSVG } from '../../shared/cat.js';
 import { sfx, toast } from '../../shared/fx.js';
+import * as P from './plan.js';
+import * as A from './advisor.js';
+import { treeHTML } from '../../shared/tree.js';
+import { aiNote } from '../../shared/llm.js';
 
 const $ = (s) => document.querySelector(s);
 const world = getWorld(), wid = getWorldId();
@@ -19,21 +23,13 @@ let globe = null, timer = null, gen = 0;
 mountShell({ base: '../../', mission: 'orbit', shortcuts: [['1–3', 'Load a real-mission orbit (design stage)'], ['G', 'Switch 3D view / ground track'], ['Space', 'Pause or play operations']] });
 
 /* ---------- numbers ---------- */
-const pick = (list, id) => list.find((x) => x.id === id);
 const fmt = (x, d = 0) => Number(x).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
 const hrs = (h) => (h < 1 ? `${fmt(h * 60, 0)} min` : `${fmt(h, 2)} h`);
 const pct = (x) => `${fmt(x * 100, 1)}%`;
 const toGlobe = (p) => [p[0] / world.radiusKm, p[2] / world.radiusKm, -p[1] / world.radiusKm];
 
 function design(p = S.p) {
-  const rk = pick(D.ROCKETS, S.rocket), an = pick(D.ANTENNAS, S.antenna), pw = pick(D.POWER, S.power);
-  const el = O.elements(p, world);
-  const dvNeed = O.requiredDv(el.rp, el.ra, world.vInfKms, world.gm);
-  const dry = D.BUS.massKg + an.massKg + pw.massKg;
-  const prop = O.propellantKg(dry, dvNeed * 1.1); // 10% margin for trim burns
-  const cap = Math.round(rk.capKg * D.PAYLOAD_FACTOR[wid]);
-  const cost = rk.costM + D.BUS.costM + an.costM + pw.costM;
-  return { rk, an, pw, el, dvNeed, dry, prop, wet: dry + prop, cap, cost, needW: D.BUS.powerW + an.powerW, haveW: pw.powerW };
+  return P.designMetrics({ rocket: S.rocket, antenna: S.antenna, power: S.power, p }, world, wid);
 }
 const timeline = (el) => O.contactTimeline(el, world, { hours: 72 });
 
@@ -125,6 +121,7 @@ function orbitDesign() {
   $('#main').innerHTML = `<section class="panel stack"><div class="row" style="justify-content:space-between"><h1 style="margin:0">Orbit design</h1>${viewSwitch()}</div>
     <div class="row small">${D.PRESETS[wid].map((p, n) => `<button data-preset="${n}" class="${S.preset === n ? 'on' : ''}" title="${p.like}">${n + 1} · ${p.name}</button>`).join('')}</div>
     <p class="small muted" id="like">${S.preset != null ? `${D.PRESETS[wid][S.preset].name}: ${D.PRESETS[wid][S.preset].like}` : 'Custom orbit'}</p>
+    <div id="analyst"><p class="small muted">The mission analyst is calculating designs…</p></div>
     ${viewBoxes()}
     <div class="elements">${FIELDS.map(([k, label, unit, range, step]) => { const [lo, hi] = range(L); return `<label class="el-row"><span>${label}</span>
       <input type="range" data-f="${k}" min="${lo}" max="${hi}" step="${step}" value="${S.p[k]}">
@@ -168,6 +165,11 @@ function orbitDesign() {
   $('#main').onchange = (e) => { const k = e.target.dataset.n; if (k) e.target.value = S.p[k]; };
   $('#main').onclick = (e) => {
     const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.design) {
+      const c = (S.analyst || []).find((x) => x.id === b.dataset.design);
+      if (c) { Object.assign(S, { rocket: c.design.rocket, antenna: c.design.antenna, power: c.design.power, p: { ...c.design.p }, preset: null }); sfx.select(); toast(`Loaded the “${c.title}” design. Change anything you like.`, 'good', 3000); go(2); }
+      return;
+    }
     if (b.dataset.preset) { S.preset = Number(b.dataset.preset); S.p = { ...D.PRESETS[wid][S.preset].p }; sfx.select(); go(2); return; }
     if (b.dataset.v) { S.view = b.dataset.v; sfx.click(); go(2); return; }
     if (b.id === 'back') go(1);
@@ -179,6 +181,19 @@ function orbitDesign() {
     if (e.key.toLowerCase() === 'g') $(`[data-v="${S.view === '3d' ? 'gt' : '3d'}"]`)?.click();
   };
   update();
+  setTimeout(() => { // the search takes a moment the first time, so let the console appear first
+    if (S.stage !== 2 || !$('#analyst')) return;
+    const { choices, relaxed } = A.designChoices(world, wid);
+    S.analyst = choices;
+    if (!choices.length) { $('#analyst').innerHTML = ''; return; }
+    const opts = choices.map((c) => ({ id: c.id, title: c.title, recommended: c.recommended, summary: c.summary, branches: c.branches, button: 'Load this design',
+      expected: `Predicted: ${fmt(c.metrics.dvMs)} m/s brake, ${fmt(c.metrics.fuelKg)} kg fuel, ${fmt(c.metrics.wetKg)} of ${fmt(c.metrics.capKg)} kg on the rocket.` }));
+    $('#analyst').innerHTML = `<details class="analyst" open><summary><b>Mission analyst</b>: ${choices.length} designs, calculated before you decide</summary>
+      ${treeHTML({ question: 'Which design do you want to start from?', options: opts, attr: 'design',
+        note: relaxed ? 'No design reaches the contact goal on this world, so these are the best that can still fly.' : 'Each one passes every go / no-go check. You still fly the capture burn yourself, and you can change anything after loading it.' })}</details>`;
+    aiNote($('#analyst .analyst'), 'orbit-design', choices.map((c) => [c.title + (c.recommended ? ' (analyst pick)' : ''),
+      `cost $${c.metrics.cost}M, contact ${pct(c.metrics.coverage)}, brake ${c.metrics.dvMs} m/s, score ${c.metrics.scoreOnTarget} on target or ${c.metrics.scoreOff} if the burn is 12% off`]));
+  }, 40);
   coachOnce('orbit2', ['This is your flight-dynamics console. Type exact values or drag the sliders, or load a real mission’s orbit.',
     'Pe and Ap mark the lowest and highest points. Satellites crawl at Ap, so put it above the base. The green cone is the sky the base can see.',
     'Every check on the Go / no-go board must be GO (or WARN) before the burn.']);
@@ -282,13 +297,16 @@ function operations() {
     + whiskers(['Green on the timeline = the base can talk to Earth through you. Red = an outage. The rover in Mission 2 gets these windows.']);
   const showEvent = () => {
     sfx.alarm(); $('#pp').disabled = true;
+    const f = A.stormForecast(t, ev.h, design(), wid, { err: S.err, retries: S.retries });
     $('#evbox').innerHTML = `<section class="event-box" role="alert"><span class="tag warn">Event · T+${fmt(ev.h, 1)} h</span>
       <h3>Solar storm warning</h3>
-      <p>A burst of charged particles from the Sun will reach ${world.name} within the hour. Radiation can reset a satellite’s computer, and a reset takes ground control a long time to fix. Real operators weigh safety against uptime. What do you order?</p>
-      <div class="choice-grid">
-        <button class="choice" data-ev="safe"><b>Safe mode for ${D.STORM.safeH} h</b><span class="small muted">Antenna off until the storm passes. Contact is lost for sure during those ${D.STORM.safeH} hours, but the satellite is safe.</span></button>
-        <button class="choice" data-ev="ride"><b>Keep transmitting</b><span class="small muted">${Math.round(D.STORM.hitChance * 100)}% chance the computer resets and the satellite is silent for ${D.STORM.resetH} h. Otherwise nothing happens at all.</span></button>
-      </div></section>`;
+      <p>A burst of charged particles from the Sun will reach ${world.name} within the hour. Radiation can reset a satellite’s computer, and a reset takes ground control a long time to fix. The analyst has already calculated what each order would cost on <em>your</em> orbit.</p>
+      ${treeHTML({ question: 'What do you order?', options: A.stormOptions(f), attr: 'ev', note: 'Computed from this orbit’s real contact windows. “Analyst pick” has the better expected score; a gamble can still go either way.' })}</section>`;
+    const e = f.expected;
+    aiNote($('#evbox .event-box'), 'storm', [
+      ['Safe mode', `${f.safe.lostH.toFixed(1)} h of contact lost for sure, score ${f.before} to ${f.safe.score}`],
+      ['Keep transmitting', `${Math.round(f.hit * 100)}% chance of losing ${f.reset.lostH.toFixed(1)} h (score ${f.reset.score}), otherwise nothing lost`],
+      ['Expected score', `safe mode ${e.safeScore.toFixed(1)}, keep transmitting ${e.rideScore.toFixed(1)}`]]);
   };
   const resolveEvent = (choice) => {
     ev.choice = choice; ev.state = 'done';
@@ -353,15 +371,11 @@ function debrief() {
     return;
   }
   const { p, t: nominal, te, event } = S.final, t = te || nominal, left = D.BUDGET_M - d.cost, margin = d.cap - d.wet;
-  const items = [
-    ['Contact with the base', 35, Math.round(35 * Math.min(1, t.coverage / D.GOALS[wid])), `${pct(t.coverage)} of the time (goal ${pct(D.GOALS[wid])}).`],
-    ['Contact length', 10, Math.round(10 * Math.min(1, t.avgWindowH / 2)), `Mean contact ${hrs(t.avgWindowH)}, longest gap ${hrs(t.maxGapH)}.`],
-    ['Capture burn accuracy', 20, Math.round(20 * Math.max(0, 1 - S.err / 0.25)) - (S.retries ? 5 : 0), `Apoapsis ${fmt(S.err * 100, 1)}% off the plan${S.retries ? ', after one fly-by' : ''}.`],
-    ['Data rate', 10, Math.round((d.an.rate / 4) * 10), `${d.an.name}: data ×${d.an.rate}.`],
-    ['Budget left', 10, Math.round(10 * Math.min(1, Math.max(0, left) / 40)), `$${left}M left.`],
-    ['Mass margin', 15, Math.round(15 * Math.min(1, Math.max(0, margin) / (d.cap * 0.25))), `${fmt(margin)} kg spare on the rocket.`],
-  ].map((x) => { x[2] = Math.max(0, x[2]); return x; });
-  const score = items.reduce((a, i) => a + i[2], 0);
+  const why = [`${pct(t.coverage)} of the time (goal ${pct(D.GOALS[wid])}).`, `Mean contact ${hrs(t.avgWindowH)}, longest gap ${hrs(t.maxGapH)}.`,
+    `Apoapsis ${fmt(S.err * 100, 1)}% off the plan${S.retries ? ', after one fly-by' : ''}.`, `${d.an.name}: data ×${d.an.rate}.`, `$${left}M left.`, `${fmt(margin)} kg spare on the rocket.`];
+  const parts = P.scoreParts(d, t, { err: S.err, retries: S.retries }, wid);
+  const items = parts.map((x, n) => [x.label, x.max, x.score, why[n]]);
+  const score = P.totalScore(parts);
   const badges = [];
   if (S.err < 0.02 && !S.retries) badges.push('Bullseye burn');
   if (t.coverage >= 0.8) badges.push('Always in touch');

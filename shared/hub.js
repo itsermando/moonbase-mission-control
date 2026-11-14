@@ -6,6 +6,7 @@ import { mountShell, renderShell } from './shell.js';
 import { catSVG, AVATAR_NAMES } from './cat.js';
 import { sfx } from './fx.js';
 import { setMusic, isMusicOn, isPlaying } from './music.js';
+import { aiEnabled, setAiEnabled } from './llm.js';
 
 const $ = (s) => document.querySelector(s);
 let globe = null;
@@ -97,4 +98,6 @@ document.addEventListener('click', (e) => {
   if (b.id === 'newp') newPlayerForm();
 });
 $('#classmode').onchange = (e) => { setClassMode(e.target.checked); sfx.click(); renderShell(); };
+$('#aimode').checked = aiEnabled();
+$('#aimode').onchange = (e) => { setAiEnabled(e.target.checked); sfx.click(); };
 render();

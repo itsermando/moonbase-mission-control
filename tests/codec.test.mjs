@@ -43,6 +43,45 @@ test('a DSN station is always on duty', () => {
   for (let h = 0; h < 24; h++) assert.ok(C.dsnStation(h).name);
 });
 
+const PK = [{ id: 'a', bits: 16, value: 10 }, { id: 'b', bits: 24, value: 20 }];
+
+test('forecast: with no noise a plan that fits is clean and worth its full value', () => {
+  const f = C.forecastPlan({ packets: PK, compression: C.COMPRESSION[0], check: C.CHECKS[0], windowS: 60, noise: 0 });
+  assert.equal(f.pAllClean, 1);
+  assert.deepEqual(f.dropped, []);
+  assert.equal(f.valueExpected, 30);
+  assert.equal(f.bitsNeeded, 40);
+});
+
+test('forecast: noise without parity risks damage; parity removes it but costs bits', () => {
+  const none = C.forecastPlan({ packets: PK, compression: C.COMPRESSION[0], check: C.CHECKS[0], windowS: 60, noise: 0.07 });
+  const par = C.forecastPlan({ packets: PK, compression: C.COMPRESSION[0], check: C.CHECKS[1], windowS: 60, noise: 0.07 });
+  assert.ok(none.pAllClean < 1 && none.valueExpected < none.valueIfClean);
+  assert.equal(par.pAllClean, 1);
+  assert.ok(par.bitsNeeded > none.bitsNeeded);
+});
+
+test('forecast: a packet that does not fit stops everything after it', () => {
+  const f = C.forecastPlan({ packets: PK, compression: C.COMPRESSION[0], check: C.CHECKS[0], windowS: 5, noise: 0 });
+  assert.deepEqual(f.sent, []);
+  assert.deepEqual(f.dropped, ['a', 'b']);
+});
+
+test('plan choices all fit the window, differ from each other, and the safe one uses parity', () => {
+  const pk = [{ id: 'pano', bits: 16, value: 10 }, { id: 'soil', bits: 8, value: 8 }, { id: 'icemap', bits: 24, value: 20 }];
+  const { choices } = C.planChoices(pk, { windowS: 40, noise: C.NOISE.moon });
+  assert.ok(choices.length >= 2);
+  assert.equal(new Set(choices.map((c) => JSON.stringify(c.plan))).size, choices.length);
+  for (const c of choices) {
+    const packets = c.plan.order.filter((id) => !c.plan.skip.includes(id)).map((id) => pk.find((p) => p.id === id));
+    const f = C.forecastPlan({ packets, compression: C.COMPRESSION.find((x) => x.id === c.plan.comp), check: C.CHECKS.find((x) => x.id === c.plan.check), windowS: 40, noise: C.NOISE.moon });
+    assert.deepEqual(f.dropped, []);
+  }
+  const safe = choices.find((c) => c.id === 'safe');
+  if (safe) assert.equal(safe.plan.check, 'parity');
+  assert.equal(choices.filter((c) => c.recommended).length, 1);
+});
+
 test('game noise flips at most one bit per byte, so parity always catches it', () => {
   let s = 7; const rand = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
   let caught = 0, flipped = 0;

@@ -19,6 +19,8 @@ Every mission has the same six-stage loop (briefing → design → test → depl
 ## Features
 - **Worlds:** the Moon (main campaign, Shackleton crater from NASA LRO LOLA data), Mars (bonus campaign, Jezero crater from NASA Mars Trek), and Mercury and Ceres as orbit challenges. Globes use NASA global mosaics.
 - **3D:** three.js globes for orbit design and a 3D rover view on the real terrain, with a 2D map fallback.
+- **Mission analyst (forecast, then choose):** before you decide, the game calculates the outcome of each option with its own physics and scoring and shows it as a decision tree. Orbit: three different designs that pass every go / no-go check, and the exact contact and score each solar-storm response would cost. Comms: three downlink plans with predicted science and noise risk. An optional, off-by-default AI can reword the forecast in plain language (`api/advise.js`, set `AI_GATEWAY_API_KEY` and `ADVISOR_MODEL`, see `.env.example`); it never calculates anything and only receives mission numbers. Without it the game is unchanged.
+- **Data provenance:** the Briefing Room lists each NASA source with its entry in the NASA Open Data Portal (`shared/datasets.js`).
 - **Profiles:** up to 4 crew members per game, with XP, ranks, medals, badges and a history of decisions. Stored only in the browser.
 - **Class mode:** shorter missions so a whole campaign fits in a 45-minute lesson. The Briefing Room has a lesson plan, discussion questions, a printable worksheet and a CSV export of results.
 - **Briefing Room** (`about.html`): answers for judges (audience, challenge fit, NASA data, accuracy, testing, privacy, accessibility) and teachers.
@@ -63,4 +65,4 @@ Team Cat on Moon: **Jeongha, David and Emad**. The idea came from a brainstorm b
 Software: three.js r170 (MIT) via jsDelivr. Cat illustrations and sound effects are original (drawn as SVG and generated with Web Audio).
 
 ## Use of AI
-Some code was written with the help of an AI coding assistant, as allowed by the Space Apps rules. The idea, missions and design decisions are the team's.
+Some code was written with the help of an AI coding assistant, as allowed by the Space Apps rules. At play time the optional AI advisor only rewords forecasts the game computed. The idea, missions and design decisions are the team's.
