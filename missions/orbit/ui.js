@@ -14,7 +14,7 @@ const world = getWorld(), wid = getWorldId();
 const STAGES = ['Briefing', 'Spacecraft', 'Orbit design', 'Capture burn', 'Operations', 'Debrief'];
 const S = { stage: 0, rocket: 'medium', antenna: 'dish', power: 'solarL', p: { ...D.PRESETS[wid][1].p }, preset: 1, view: '3d',
   dv: null, fuelFactor: 1, result: null, retries: 0, err: 0 };
-let globe = null, timer = null;
+let globe = null, timer = null, gen = 0;
 
 mountShell({ base: '../../', mission: 'orbit', shortcuts: [['1–3', 'Load a real-mission orbit (design stage)'], ['G', 'Switch 3D view / ground track'], ['Space', 'Pause or play operations']] });
 
@@ -55,12 +55,17 @@ function stageBar() { $('#stages').innerHTML = STAGES.map((s, n) => `<span class
 const whiskers = (tips) => `<section class="panel capcom" aria-live="polite"><h3>${whiskersSVG(34)} CAPCOM Whiskers</h3><ul>${tips.map((t) => `<li>${t}</li>`).join('')}</ul>
   <details class="small"><summary>Space words explained</summary>${D.GLOSSARY.map(([w, x]) => `<p><b>${w}:</b> ${x}</p>`).join('')}</details></section>`;
 function go(n) {
-  S.stage = n; clearInterval(timer); if (globe) { globe.dispose(); globe = null; }
+  S.stage = n; gen++; clearInterval(timer); if (globe) { globe.dispose(); globe = null; }
   const m = $('#main'); m.onclick = null; m.oninput = null; m.onchange = null; document.onkeydown = null;
   render(); window.scrollTo({ top: 0 });
 }
 async function makeGlobe(el) {
-  try { const { Globe } = await import('../../shared/globe.js'); const g = new Globe(el, { base: '../../', world, autoRotate: 0 }); g.setSite(world.site.latDeg); g.setSiteCone(world.site.latDeg); return g; }
+  const my = gen;
+  try {
+    const { Globe } = await import('../../shared/globe.js');
+    if (my !== gen || !el.isConnected) return null; // the player already moved to another stage
+    const g = new Globe(el, { base: '../../', world, autoRotate: 0 }); g.setSite(world.site.latDeg); g.setSiteCone(world.site.latDeg); return g;
+  }
   catch { el.innerHTML = '<p class="small muted" style="padding:20px">3D view needs an internet connection; use the ground track.</p>'; return null; }
 }
 const viewSwitch = () => `<div class="row small"><button data-v="3d" class="${S.view === '3d' ? 'on' : ''}">3D view</button><button data-v="gt" class="${S.view === 'gt' ? 'on' : ''}">Ground track</button><span class="muted">press G to switch</span></div>`;
@@ -125,8 +130,9 @@ function orbitDesign() {
       <input type="number" data-n="${k}" min="${lo}" max="${hi}" step="${step}" value="${S.p[k]}"><em>${unit}</em></label>`; }).join('')}</div>
     <p class="small muted">ω = 90° puts the apoapsis over the south pole, 270° over the north pole. Satellites move slowest at apoapsis (Kepler’s 2nd law).</p>
     <div class="row"><button id="back">Back</button><button class="primary big" id="next">Go to capture burn</button></div></section>`;
-  makeGlobe($('#globe')).then((g) => { globe = g; update(); });
+  makeGlobe($('#globe')).then((g) => { if (g) { globe = g; update(); } });
   const update = () => {
+    if (S.stage !== 2) return;
     const d = design(), t = timeline(d.el), ch = checks(d, t), nogo = ch.some((c) => c.s === 'nogo');
     if (globe) {
       globe.setPlannerOrbit(O.orbitPath(d.el).map(toGlobe), toGlobe(O.periapsisPos(d.el)), toGlobe(O.apoapsisPos(d.el)));
@@ -194,7 +200,7 @@ function captureBurn() {
       <div class="formula mono">v<sub>after</sub> = ${fmt(vHyp, 3)} − Δv &nbsp;·&nbsp; a = 1 / (2/r<sub>p</sub> − v²/GM) &nbsp;·&nbsp; r<sub>a</sub> = 2a − r<sub>p</sub></div>
       <div id="pred" class="statgrid"></div></div>
     <div class="row"><button id="back">Back to design</button><button class="primary big launch" id="fire">Execute burn</button></div></section>`;
-  makeGlobe($('#globe')).then((g) => { globe = g; if (g) { g.setPlannerOrbit(O.orbitPath(el).map(toGlobe), toGlobe(O.periapsisPos(el)), toGlobe(O.apoapsisPos(el))); g.frame(Math.max(3.2, (el.ra / world.radiusKm) * 2.4)); predict(); } });
+  makeGlobe($('#globe')).then((g) => { if (!g) return; globe = g; { g.setPlannerOrbit(O.orbitPath(el).map(toGlobe), toGlobe(O.periapsisPos(el)), toGlobe(O.apoapsisPos(el))); g.frame(Math.max(3.2, (el.ra / world.radiusKm) * 2.4)); predict(); } });
   const predict = () => {
     const r = O.captureResult(el.rp, world.vInfKms, S.dv, world.gm, world.radiusKm);
     const fuelUsed = (d.dry + fuel) * (1 - Math.exp(-(S.dv * 1000) / (O.ISP_S * O.G0)));
@@ -261,7 +267,7 @@ function operations() {
     const n = $('#tnow'); if (n) n.style.left = `${(h / 72) * 100}%`;
     const st = $('#tstat'); if (st) st.textContent = `T+${fmt(h, 1)} h · ${inView ? 'BASE IN CONTACT' : 'NO CONTACT'}`;
   };
-  makeGlobe($('#globe')).then((g) => { globe = g; if (g) { g.setPlannerOrbit(O.orbitPath(el).map(toGlobe), toGlobe(O.periapsisPos(el)), toGlobe(O.apoapsisPos(el))); g.frame(Math.max(3.2, (el.ra / world.radiusKm) * 2.4)); } });
+  makeGlobe($('#globe')).then((g) => { if (!g) return; globe = g; { g.setPlannerOrbit(O.orbitPath(el).map(toGlobe), toGlobe(O.periapsisPos(el)), toGlobe(O.apoapsisPos(el))); g.frame(Math.max(3.2, (el.ra / world.radiusKm) * 2.4)); } });
   clearInterval(timer); timer = setInterval(step, S.view === 'gt' ? 120 : 40);
   $('#main').onclick = (e) => {
     const b = e.target.closest('button'); if (!b) return;

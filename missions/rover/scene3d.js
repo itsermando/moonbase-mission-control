@@ -38,12 +38,12 @@ export class MoonScene {
     container.appendChild(this.renderer.domElement);
 
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(this.mars ? 0x24140e : 0x020308);
-    if (this.mars) this.scene.fog = new THREE.Fog(0x8a5a40, 60, 220); // dusty Martian air
+    this.scene.background = new THREE.Color(this.mars ? 0x1a0d0a : 0x03040b);
+    if (this.mars) this.scene.fog = new THREE.Fog(0x5a3426, 60, 220); // dusty Martian air (range follows the camera)
     this.camera = new THREE.PerspectiveCamera(45, 1, 0.1, 2000);
-    this.camera.position.set(-30, 34, 40);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-    this.controls.enableDamping = true; this.controls.maxPolarAngle = 1.45; this.controls.minDistance = 4; this.controls.maxDistance = 110;
+    this.controls.enableDamping = true; this.controls.maxPolarAngle = 1.45; this.controls.minDistance = 4; this.controls.maxDistance = N * 5;
+    this.iso();
     this.follow = true;
 
     this.addSky();
@@ -114,9 +114,71 @@ export class MoonScene {
     const m = new THREE.MeshStandardMaterial({ map: this.texture, roughness: 0.95, metalness: 0, color: this.mars ? 0xe8a47a : 0xffffff });
     this.terrain = new THREE.Mesh(geo, m); this.terrain.receiveShadow = true; this.terrain.castShadow = true;
     this.scene.add(this.terrain);
-    // a dark skirt so the map edge doesn't look paper-thin
-    const skirt = new THREE.Mesh(new THREE.BoxGeometry(N, 2, N), new THREE.MeshStandardMaterial({ color: 0x15171c }));
-    skirt.position.y = -1.01; this.scene.add(skirt);
+    this.addDiorama();
+  }
+
+  /** Holo-diorama: the real terrain as a cut-out block with rock walls, neon edges and a grid floor. */
+  addDiorama() {
+    const base = -5, neon = this.mars ? 0xff7a3d : 0x00e5ff, h = N / 2;
+    const top = (x, z) => elevAt(x + h - 0.5, z + h - 0.5);
+    // the four sides, walked around the block so the edge line is one loop
+    const ring = [];
+    for (let s = -h; s < h; s += 0.25) ring.push([s, -h]);
+    for (let s = -h; s < h; s += 0.25) ring.push([h, s]);
+    for (let s = h; s > -h; s -= 0.25) ring.push([s, h]);
+    for (let s = h; s > -h; s -= 0.25) ring.push([-h, s]);
+    ring.push(ring[0]);
+    const pos = [], col = [], rock = new THREE.Color(this.mars ? 0x6b3a26 : 0x3a3f4a), deep = new THREE.Color(this.mars ? 0x1c0c07 : 0x07090f);
+    for (let k = 0; k < ring.length - 1; k++) {
+      const [x0, z0] = ring[k], [x1, z1] = ring[k + 1], y0 = top(x0, z0), y1 = top(x1, z1);
+      pos.push(x0, y0, z0, x0, base, z0, x1, y1, z1, x1, y1, z1, x0, base, z0, x1, base, z1);
+      for (const c of [rock, deep, rock, rock, deep, deep]) col.push(c.r, c.g, c.b);
+    }
+    const wg = new THREE.BufferGeometry();
+    wg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); wg.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    wg.computeVertexNormals();
+    this.scene.add(new THREE.Mesh(wg, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, side: THREE.DoubleSide })));
+    // neon outline: the terrain's cut edge, the base and the four corners
+    const lineMat = new THREE.LineBasicMaterial({ color: neon, transparent: true, opacity: 0.95 });
+    this.scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(ring.map(([x, z]) => new THREE.Vector3(x, top(x, z) + 0.03, z))), lineMat));
+    const bp = [[-h, -h], [h, -h], [h, h], [-h, h], [-h, -h]].map(([x, z]) => new THREE.Vector3(x, base, z));
+    this.scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(bp), lineMat));
+    for (const [x, z] of [[-h, -h], [h, -h], [h, h], [-h, h]]) {
+      this.scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x, base, z), new THREE.Vector3(x, top(x, z), z)]),
+        new THREE.LineBasicMaterial({ color: 0xff2bd6, transparent: true, opacity: 0.8 })));
+    }
+    // grid floor that fades out into space
+    const c = document.createElement('canvas'); c.width = c.height = 1024; const g = c.getContext('2d');
+    const hex = '#' + new THREE.Color(neon).getHexString();
+    g.strokeStyle = hex; g.globalAlpha = 0.32; g.lineWidth = 2;
+    for (let k = 0; k <= 1024; k += 32) { g.beginPath(); g.moveTo(k, 0); g.lineTo(k, 1024); g.moveTo(0, k); g.lineTo(1024, k); g.stroke(); }
+    g.globalAlpha = 1; g.globalCompositeOperation = 'destination-in';
+    const rg = g.createRadialGradient(512, 512, 90, 512, 512, 470); rg.addColorStop(0, 'rgba(0,0,0,1)'); rg.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = rg; g.fillRect(0, 0, 1024, 1024);
+    const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(N * 4.5, N * 4.5), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, fog: false }));
+    floor.rotation.x = -Math.PI / 2; floor.position.y = base - 0.05; this.scene.add(floor);
+    // a slow scan line that climbs the walls, like a hologram being projected
+    this.scanBand = new THREE.Line(new THREE.BufferGeometry().setFromPoints(bp), new THREE.LineBasicMaterial({ color: neon, transparent: true, opacity: 0.5 }));
+    this.scanBase = base; this.scene.add(this.scanBand);
+  }
+
+  /** Landing-site beacon: a light beam, a spinning hex pad and a label. */
+  addBeacon(p) {
+    if (this.beacon) this.scene.remove(this.beacon);
+    const g = new THREE.Group(), gold = 0xffd23f;
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.5, 26, 16, 1, true),
+      new THREE.MeshBasicMaterial({ color: gold, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+    beam.position.y = 13;
+    const pad = new THREE.Mesh(new THREE.RingGeometry(1.3, 1.55, 6), new THREE.MeshBasicMaterial({ color: gold, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false }));
+    pad.rotation.x = -Math.PI / 2; pad.position.y = 0.15;
+    const pad2 = new THREE.Mesh(new THREE.RingGeometry(1.9, 2.0, 6), pad.material.clone()); pad2.rotation.x = -Math.PI / 2; pad2.position.y = 0.12; pad2.material.opacity = 0.5;
+    const c = document.createElement('canvas'); c.width = 256; c.height = 64; const x = c.getContext('2d');
+    x.font = '700 30px "Share Tech Mono", monospace'; x.fillStyle = '#ffd23f'; x.shadowColor = '#ffd23f'; x.shadowBlur = 10; x.fillText('▼ LANDING SITE', 6, 42);
+    const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), depthTest: false, transparent: true }));
+    label.scale.set(9, 2.25, 1); label.position.y = 6.5;
+    g.add(beam, pad, pad2, label); g.position.copy(p); g.userData = { beam, pad, pad2 };
+    this.beacon = g; this.scene.add(g);
   }
 
   refreshOverlay() { this.texture.needsUpdate = true; }
@@ -163,6 +225,7 @@ export class MoonScene {
     // stand the lander just beside the rover's start square so both are visible
     const ci = k % N - 0.9, cj = Math.floor(k / N) - 0.7;
     const p = cellToWorld(ci, cj); this.lander.position.copy(p); this.landerHome = p.clone();
+    this.addBeacon(cellToWorld(k % N, Math.floor(k / N)));
   }
 
   placeRover(ci, cj, heading) {
@@ -197,8 +260,8 @@ export class MoonScene {
   playLanding(k) {
     this.setLander(k);
     const home = this.landerHome.clone();
-    const startCam = home.clone().add(new THREE.Vector3(-14, 10, 16));
-    this.camera.position.copy(startCam); this.controls.target.copy(home);
+    const startCam = home.clone().add(new THREE.Vector3(14, 10, 16));
+    this.setFov(45); this.camera.position.copy(startCam); this.controls.target.copy(home);
     this.follow = false;
     return new Promise((resolve) => {
       this.landing = { t0: performance.now(), dur: 3600, home, resolve };
@@ -209,7 +272,7 @@ export class MoonScene {
   endLanding() {
     const L = this.landing; if (!L) return;
     this.lander.position.copy(L.home); this.lander.userData.flame.material.opacity = 0;
-    this.landing = null; this.follow = true; L.resolve();
+    this.landing = null; this.iso(L.home, N * 1.9); this.follow = true; L.resolve();
   }
 
   bindPointer() {
@@ -297,7 +360,22 @@ export class MoonScene {
     }
 
     if (this.follow && this.rover && !this.landing) {
+      // move the camera with the target so the view angle stays the same while following
+      const before = this.controls.target.clone();
       this.controls.target.lerp(this.rover.position, Math.min(1, dt * 3));
+      this.camera.position.add(this.controls.target.clone().sub(before));
+    }
+    if (this.beacon) {
+      const b = this.beacon.userData;
+      b.pad.rotation.z += dt * 0.8; b.pad2.rotation.z -= dt * 0.4; b.beam.material.opacity = 0.16 + Math.sin(time * 2.4) * 0.07;
+    }
+    if (this.scanBand) {
+      const u = (time * 0.12) % 1; this.scanBand.position.y = u * (Math.abs(this.scanBase) + 2);
+      this.scanBand.material.opacity = 0.55 * (1 - u);
+    }
+    if (this.scene.fog) {
+      const d = this.camera.position.distanceTo(this.controls.target);
+      this.scene.fog.near = d * 0.9; this.scene.fog.far = d * 2.8;
     }
     this.earth.rotation.y += dt * 0.02;
     this.sun.target.position.copy(this.controls.target);
@@ -305,10 +383,17 @@ export class MoonScene {
     this.renderer.render(this.scene, this.camera);
   }
 
-  overview() { this.follow = false; this.camera.position.set(-30, 34, 40); this.controls.target.set(0, 4, 0); }
+  setFov(f) { this.camera.fov = f; this.camera.updateProjectionMatrix(); }
+  /** Isometric-style view: a narrow lens from far away at the classic 45° / 35° angle, so the area reads like a map-diorama. */
+  iso(target = new THREE.Vector3(0, 3, 0), dist = N * 3.3) {
+    this.setFov(24);
+    this.controls.target.copy(target);
+    this.camera.position.copy(target).add(new THREE.Vector3(1, 0.82, 1).normalize().multiplyScalar(dist));
+  }
+  overview() { this.follow = false; this.iso(); }
   chase() {
     if (!this.rover) return;
-    this.follow = true;
+    this.follow = true; this.setFov(45);
     this.camera.position.copy(this.rover.position).add(new THREE.Vector3(-5, 4, 5));
   }
 

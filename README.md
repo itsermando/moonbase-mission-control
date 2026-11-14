@@ -54,6 +54,9 @@ Open http://localhost:5173. Tests: `npm test` (Node 20+): 30 tests covering orbi
 
 Sunlight, ice amounts, Earth visibility, Mars heights, noise and costs are simplified game models and are labelled as such in the game.
 
+## Music and sound
+The soundtrack is inspired by the Voyager Golden Record, but the record's music is still under copyright, so the game plays an original ambient score generated live with Web Audio (`shared/music.js`). Short NASA public-domain recordings from the nasa.gov audio collection play at key moments: "The Eagle has landed" and "One small step" (Apollo 11) and the Sputnik 1 beeps (`shared/audio/`). The Golden Record picture is NASA/JPL-Caltech PIA14113.
+
 ## Team and credits
 Team Cat on Moon: **Jeongha, David and Emad**. The idea came from a brainstorm by the three of us; Mission 3's signal-encoding game is based on Jeongha's design.
 Software: three.js r170 (MIT) via jsDelivr. Cat illustrations and sound effects are original (drawn as SVG and generated with Web Audio).

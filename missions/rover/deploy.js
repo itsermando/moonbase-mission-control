@@ -8,6 +8,7 @@ import { setupCanvas, draw, cellFromEvent } from './map.js';
 import { S, go, legend } from './game.js';
 import { finishRun } from './debrief.js';
 import { sfx, toast, isMuted, setMuted } from '../../shared/fx.js';
+import { playClip } from '../../shared/music.js';
 
 const $ = (sel) => document.querySelector(sel);
 let ui = null; // { scene, map, busy, hoverK, hoverPlan, keyHandler, logLen }
@@ -203,7 +204,7 @@ export async function renderDeploy(capcomPanel) {
       <div class="hud tl" id="hud"></div>
       <div class="hud tr row">
         <button id="v-3d" class="primary" title="3D view">3D</button><button id="v-2d" title="Flat NASA map">2D map</button>
-        <button id="v-chase" title="Follow the rover">Follow</button><button id="v-over" title="See the whole area">Overview</button>
+        <button id="v-chase" title="Follow the rover">Follow</button><button id="v-over" title="Isometric view of the whole area">Iso view</button>
         <button id="v-mute" aria-pressed="${isMuted()}">${isMuted() ? 'Sound off' : 'Sound on'}</button>
       </div>
       <div class="tip" id="tip" hidden></div>
@@ -302,7 +303,7 @@ async function landing() {
   const lines = ['Altitude 2,000 m', 'Altitude 600 m · hazard scan', 'Altitude 100 m · dust rising', 'Contact light'];
   for (let n = 0; n < lines.length && !skip; n++) { $('#bn-text').textContent = lines[n]; await Promise.race([sleep(900), done]); }
   await done;
-  sfx.touchdown();
+  sfx.touchdown(); playClip('eagle');
   banner.innerHTML = '<div class="banner"><span class="tag good">Touchdown</span><h2>The rover is rolling off the lander</h2></div>';
   ui.scene.setRover(S.run.design, S.run.siteK);
   setTimeout(() => { if (ui) banner.innerHTML = ''; }, 2200);

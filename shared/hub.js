@@ -5,11 +5,18 @@ import { listProfiles, getCrew, toggleCrew, createProfile, levelOf, ROLES, AVATA
 import { mountShell, renderShell } from './shell.js';
 import { catSVG, AVATAR_NAMES } from './cat.js';
 import { sfx } from './fx.js';
+import { setMusic, isMusicOn, isPlaying } from './music.js';
 
 const $ = (s) => document.querySelector(s);
 let globe = null;
 
 mountShell({ base: '', mission: null });
+{
+  const pm = document.getElementById('play-music');
+  const label = () => { if (pm) pm.textContent = isMusicOn() && isPlaying() ? 'Stop the soundtrack' : 'Play the soundtrack'; };
+  window.addEventListener('musicchange', label);
+  if (pm) { label(); pm.onclick = () => { setMusic(!(isMusicOn() && isPlaying())); label(); renderShell(); }; }
+}
 
 function hero() {
   const w = getWorld();

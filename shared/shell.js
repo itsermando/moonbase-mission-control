@@ -5,6 +5,7 @@ import { getCrew, levelOf } from './profile.js';
 import { getWorld, getMission, isClassMode, campaignScore } from './campaign.js';
 import { MISSIONS } from './worlds.js';
 import { isMuted, setMuted, sfx, toast } from './fx.js';
+import { initMusic, isMusicOn, isPlaying, setMusic, setAudioBase, startMusic, stopMusic } from './music.js';
 
 let opts = { base: '', mission: null, shortcuts: [] };
 
@@ -15,6 +16,7 @@ export function mountShell(o = {}) {
   let el = document.getElementById('shell');
   if (!el) { el = document.createElement('header'); el.id = 'shell'; document.body.prepend(el); }
   renderShell();
+  setAudioBase(opts.base); initMusic();
   document.addEventListener('keydown', (e) => {
     if (e.key === '?' && !e.target.closest?.('input,textarea')) toggleHelp();
     if (e.key === 'Escape') document.getElementById('help-overlay')?.remove();
@@ -43,9 +45,11 @@ export function renderShell() {
       ${lv ? `<span class="xp"><b>${lead.name}</b> <small>Lv ${lv.level} ${lv.rank}</small><span class="xpbar"><i style="width:${lv.max ? 100 : Math.round((lv.into / lv.span) * 100)}%"></i></span></span>` : ''}
     </a>
     <button class="icon" id="sh-sound" aria-pressed="${!isMuted()}" title="Sound">${isMuted() ? 'Sound off' : 'Sound on'}</button>
+    <button class="icon" id="sh-music" data-music aria-pressed="${isMusicOn()}" title="Original ambient soundtrack">${isMusicOn() ? 'Music on' : 'Music off'}</button>
     <a class="icon" href="${b}about.html" title="Briefing Room: for judges and teachers">Briefing Room</a>
     <button class="icon" id="sh-help" title="Keyboard shortcuts (?)">?</button>`;
-  el.querySelector('#sh-sound').onclick = (e) => { setMuted(!isMuted()); e.target.textContent = isMuted() ? 'Sound off' : 'Sound on'; e.target.setAttribute('aria-pressed', String(!isMuted())); sfx.click(); };
+  el.querySelector('#sh-sound').onclick = (e) => { setMuted(!isMuted()); e.target.textContent = isMuted() ? 'Sound off' : 'Sound on'; e.target.setAttribute('aria-pressed', String(!isMuted())); sfx.click(); if (isMuted()) stopMusic(); else if (isMusicOn()) startMusic(); };
+  el.querySelector('#sh-music').onclick = (e) => { const v = !(isMusicOn() && isPlaying()); setMusic(v); e.target.textContent = v ? 'Music on' : 'Music off'; e.target.setAttribute('aria-pressed', String(v)); };
   el.querySelector('#sh-help').onclick = toggleHelp;
 }
 

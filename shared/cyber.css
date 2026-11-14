@@ -134,3 +134,9 @@ table.readout td:last-child { text-align: right; color: #00e5ff; font-variant-nu
 .timeline .now { background: #ff2bd6; box-shadow: 0 0 10px #ff2bd6; }
 button:disabled { opacity: .45; cursor: not-allowed; filter: grayscale(.6); }
 .hub .hero::after { display: none; }
+.golden { margin: 8px 0 12px; position: relative; }
+.golden img { display: block; width: 100%; max-width: 560px; height: auto; border: 1px solid rgba(255,210,63,.5); box-shadow: 0 0 28px rgba(255,210,63,.18); }
+.golden figcaption { font: 13px 'Share Tech Mono', monospace; color: #ffd23f; margin-top: 6px; }
+.golden-panel { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 18px; align-items: center; }
+.golden-panel .golden { margin: 0; }
+@media (max-width: 760px) { .golden-panel { grid-template-columns: 1fr; } }

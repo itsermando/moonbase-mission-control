@@ -7,6 +7,7 @@ import { awardRun } from '../../shared/profile.js';
 import { whiskersSVG } from '../../shared/cat.js';
 import { sfx, toast } from '../../shared/fx.js';
 import { lightDelayText } from '../../shared/worlds.js';
+import { playClip } from '../../shared/music.js';
 
 const $ = (s) => document.querySelector(s);
 const world = getWorld();
@@ -32,7 +33,7 @@ const whiskers = (tips) => `<section class="panel capcom" aria-live="polite"><h3
   <p><b>Deep Space Network:</b> NASA’s three giant antenna sites in California, Spain and Australia, spaced so one always faces the spacecraft.</p></details></section>`;
 
 function stageBar() { $('#stages').innerHTML = STAGES.map((s, n) => `<span class="stage ${n < S.stage ? 'done' : n === S.stage ? 'now' : ''}">${n + 1} ${s}</span>`).join(''); }
-function go(n) { S.stage = n; clearInterval(S.timer); const m = $('#main'); m.onclick = null; m.onchange = null; document.onkeydown = null; render(); window.scrollTo({ top: 0 }); }
+function go(n) { if (n === 2 && S.stage !== 2) playClip('sputnik', 0.45); S.stage = n; clearInterval(S.timer); const m = $('#main'); m.onclick = null; m.onchange = null; document.onkeydown = null; render(); window.scrollTo({ top: 0 }); }
 
 /* ---------- 1 Briefing ---------- */
 function briefing() {
@@ -207,6 +208,7 @@ function debrief() {
   const award = awardRun({ mission: 'comms', world: wid, score, badges, summary: `${Math.round(got)}/${maxValue} science, decoded ${ul.solved ? ul.word : 'no'}`,
     decisions: [compC.name, check().name, `Sent ${chosen().length} of ${PACKETS.length} packets`] });
   celebrate(award); if (score >= 65) sfx.good(); else sfx.bad();
+  if (score >= 65) setTimeout(() => playClip('step', 0.7), 1500); // the whole campaign is done: one small step
   const total = campaignScore(wid), stars = score >= 85 ? 3 : score >= 60 ? 2 : score >= 35 ? 1 : 0;
   $('#main').innerHTML = `<section class="panel stack"><div class="row" style="justify-content:space-between"><div><span class="tag ${score >= 65 ? 'good' : 'warn'}">${score >= 65 ? 'Data home' : 'Partial downlink'}</span>
     <div class="row" style="align-items:baseline"><div class="score">${score}</div><div class="muted">/ 100</div></div></div>
