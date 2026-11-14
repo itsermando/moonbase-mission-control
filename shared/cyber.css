@@ -131,7 +131,13 @@ table.readout td:last-child { text-align: right; color: #00e5ff; font-variant-nu
 .formula { font: 13px 'Share Tech Mono', monospace; color: #ff9cf0; padding: 6px 8px; background: rgba(0,0,0,.35); overflow-x: auto; white-space: nowrap; }
 .timeline { background: #070c1a; border-color: rgba(0,229,255,.35); }
 .timeline i { background: linear-gradient(180deg, #39ff9f, #12a866); box-shadow: 0 0 8px rgba(57,255,159,.5); }
-.timeline .now { background: #ff2bd6; box-shadow: 0 0 10px #ff2bd6; }
+.timeline .now { background: #ff2bd6; box-shadow: 0 0 10px #ff2bd6; z-index: 2; }
+.timeline i.out { z-index: 1; background: repeating-linear-gradient(45deg, rgba(255,56,100,.9) 0 6px, rgba(110,12,40,.9) 6px 12px); box-shadow: 0 0 8px rgba(255,56,100,.55); }
+.event-box { display: grid; gap: 10px; padding: 14px; border: 1px solid var(--warn); background: var(--warn-bg); animation: toastin .3s ease-out both; }
+.event-box h3 { margin: 0; color: var(--warn); font-family: var(--display, 'Orbitron', sans-serif); text-transform: uppercase; letter-spacing: .08em; }
+.event-box p { margin: 0; }
+.event-box.good { border-color: var(--good); background: var(--good-bg); } .event-box.bad { border-color: var(--bad); background: var(--bad-bg); }
+.event-box.info { border-color: var(--accent); background: var(--accent-bg); }
 button:disabled { opacity: .45; cursor: not-allowed; filter: grayscale(.6); }
 .hub .hero::after { display: none; }
 .golden { margin: 8px 0 12px; position: relative; }

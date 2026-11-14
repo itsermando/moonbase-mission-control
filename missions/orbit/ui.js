@@ -43,7 +43,8 @@ function checks(d, t) {
   add(d.wet <= d.cap, false, 'Launch mass', `${fmt(d.wet)} / ${fmt(d.cap)} kg`, 'Satellite plus fuel must fit the rocket.');
   add(d.cost <= D.BUDGET_M, false, 'Budget', `$${d.cost}M / $${D.BUDGET_M}M`, 'Rocket and satellite parts.');
   add(d.haveW >= d.needW, false, 'Power', `${d.haveW} / ${d.needW} W`, 'Solar wings must run the antenna and computer.');
-  add(S.p.periAltKm >= L.minPeri, false, 'Periapsis safety', `${fmt(Math.min(S.p.periAltKm, S.p.apoAltKm))} km ≥ ${L.minPeri} km`, wid === 'mars' ? 'Below ~120 km, Mars’s air drags you down.' : 'Must clear mountains and crater rims.');
+  const low = Math.min(S.p.periAltKm, S.p.apoAltKm);
+  add(low >= L.minPeri, false, 'Periapsis safety', `${fmt(low)} km ≥ ${L.minPeri} km`, wid === 'mars' ? 'Below ~120 km, Mars’s air drags you down.' : 'Must clear mountains and crater rims.');
   add(Math.max(S.p.periAltKm, S.p.apoAltKm) <= L.maxApo, false, 'Apoapsis limit', `${fmt(Math.max(S.p.periAltKm, S.p.apoAltKm))} ≤ ${fmt(L.maxApo)} km`, 'Higher than this, the Sun’s and planets’ pull make the orbit unstable.');
   add(t.coverage >= D.GOALS[wid], true, 'Contact goal', `${pct(t.coverage)} ≥ ${pct(D.GOALS[wid])}`, 'Share of time the base can talk through you.');
   add(t.avgWindowH >= 0.5, true, 'Contact length', hrs(t.avgWindowH), 'Short passes leave the rover little time to talk.');
@@ -130,7 +131,7 @@ function orbitDesign() {
       <input type="number" data-n="${k}" min="${lo}" max="${hi}" step="${step}" value="${S.p[k]}"><em>${unit}</em></label>`; }).join('')}</div>
     <p class="small muted">ω = 90° puts the apoapsis over the south pole, 270° over the north pole. Satellites move slowest at apoapsis (Kepler’s 2nd law).</p>
     <div class="row"><button id="back">Back</button><button class="primary big" id="next">Go to capture burn</button></div></section>`;
-  makeGlobe($('#globe')).then((g) => { if (g) { globe = g; update(); } });
+  if (S.view === '3d') makeGlobe($('#globe')).then((g) => { if (g) { globe = g; update(); } });
   const update = () => {
     if (S.stage !== 2) return;
     const d = design(), t = timeline(d.el), ch = checks(d, t), nogo = ch.some((c) => c.s === 'nogo');
@@ -152,12 +153,19 @@ function orbitDesign() {
     $('#next').disabled = nogo;
   };
   let deb = null;
-  const setField = (k, val) => {
-    S.p[k] = Number(val); S.preset = null; $('#like').textContent = 'Custom orbit';
-    $(`[data-f="${k}"]`).value = S.p[k]; $(`[data-n="${k}"]`).value = S.p[k];
+  const setField = (k, val, from) => {
+    const [lo, hi] = FIELDS.find((f) => f[0] === k)[3](L);
+    S.p[k] = Math.min(hi, Math.max(lo, Number(val))); S.preset = null; $('#like').textContent = 'Custom orbit';
+    document.querySelectorAll('[data-preset]').forEach((b) => b.classList.remove('on'));
+    if (from !== 'f') $(`[data-f="${k}"]`).value = S.p[k];
+    if (from !== 'n') $(`[data-n="${k}"]`).value = S.p[k]; // never rewrite the box being typed in (it eats decimals)
     clearTimeout(deb); deb = setTimeout(update, 70);
   };
-  $('#main').oninput = (e) => { const k = e.target.dataset.f || e.target.dataset.n; if (k && e.target.value !== '') setField(k, e.target.value); };
+  $('#main').oninput = (e) => {
+    const f = e.target.dataset.f, n = e.target.dataset.n, k = f || n;
+    if (k && e.target.value !== '' && Number.isFinite(Number(e.target.value))) setField(k, e.target.value, f ? 'f' : 'n');
+  };
+  $('#main').onchange = (e) => { const k = e.target.dataset.n; if (k) e.target.value = S.p[k]; };
   $('#main').onclick = (e) => {
     const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.preset) { S.preset = Number(b.dataset.preset); S.p = { ...D.PRESETS[wid][S.preset].p }; sfx.select(); go(2); return; }
@@ -245,38 +253,89 @@ function captureBurn() {
 /* ---------- 5 Operations: watch 72 hours ---------- */
 function operations() {
   const p = { ...S.p, ...S.result }, el = O.elements(p, world), t = timeline(el), track = O.groundTrack(el, world, { hours: 72 });
-  S.final = { p, el, t };
+  if (!S.keepOps || !S.ops) S.ops = { h: 0, speed: 3, playing: true, ev: { h: 20 + Math.random() * 30, state: 'pending', hit: Math.random() < D.STORM.hitChance, durH: 0 } };
+  S.keepOps = false;
+  const ops = S.ops, ev = ops.ev;
+  let te = t; // timeline after any outage
+  const applyOutage = (startH, durH) => {
+    te = O.withOutage(t, startH, durH);
+    const dtH = 72 / Math.max(1, track.length - 1);
+    track.forEach((pt, k) => { if (k * dtH >= startH && k * dtH < startH + durH) pt.inView = false; });
+  };
+  if (ev.state === 'done' && ev.durH) applyOutage(ev.h, ev.durH);
+  S.final = { p, el, t, te, event: ev.state === 'done' ? { choice: ev.choice, hit: ev.choice === 'ride' && ev.hit, durH: ev.durH, lostH: te.outage?.lostH || 0 } : null };
+  const bars = () => `${te.windows.map((w) => `<i style="left:${(w.startH / 72) * 100}%;width:${Math.max(0.3, ((w.endH - w.startH) / 72) * 100)}%"></i>`).join('')}${te.outage ? `<i class="out" title="Outage" style="left:${(te.outage.startH / 72) * 100}%;width:${((te.outage.endH - te.outage.startH) / 72) * 100}%"></i>` : ''}<span class="now" id="tnow"></span>`;
   $('#main').innerHTML = `<section class="panel stack"><div class="row" style="justify-content:space-between"><h1 style="margin:0">Operations · 72 h</h1>${viewSwitch()}</div>
     ${viewBoxes()}
-    <div class="timeline" id="tlbar">${t.windows.map((w) => `<i style="left:${(w.startH / 72) * 100}%;width:${Math.max(0.3, ((w.endH - w.startH) / 72) * 100)}%"></i>`).join('')}<span class="now" id="tnow"></span></div>
+    <div class="timeline" id="tlbar" role="img" aria-label="Contact windows over 72 hours">${bars()}</div>
     <div class="row small muted" style="justify-content:space-between"><span>0 h</span><span>24 h</span><span>48 h</span><span>72 h</span></div>
-    <div class="row"><button id="pp">Pause</button>${[1, 3, 8].map((x) => `<button data-speed="${x}">${x}×</button>`).join('')}<span id="tstat" class="mono small"></span>
-      <button class="primary big" id="next" style="margin-left:auto">Mission debrief</button></div></section>`;
-  $('#side').innerHTML = `<section class="panel"><h3>Final orbit</h3><table class="readout">
+    <div id="evbox" aria-live="assertive"></div>
+    <div class="row"><button id="pp" ${ev.state === 'open' ? 'disabled' : ''}>${ops.playing ? 'Pause' : 'Play'}</button>${[1, 3, 8].map((x) => `<button data-speed="${x}" class="${ops.speed === x ? 'on' : ''}">${x}×</button>`).join('')}<span id="tstat" class="mono small"></span>
+      <button class="primary big" id="next" style="margin-left:auto" ${ev.state === 'done' ? '' : 'disabled title="Available once you have handled the event"'}>Mission debrief</button></div></section>`;
+  function readout() {
+    return `<table class="readout">
     <tr><td>Orbit</td><td>${fmt(p.periAltKm)} × ${fmt(p.apoAltKm)} km</td></tr><tr><td>Period</td><td>${hrs(el.T / 3600)}</td></tr>
-    <tr><td>Contact with base</td><td>${pct(t.coverage)}</td></tr><tr><td>Contacts in 72 h</td><td>${t.windows.length}</td></tr>
-    <tr><td>Mean contact</td><td>${hrs(t.avgWindowH)}</td></tr><tr><td>Longest gap</td><td>${hrs(t.maxGapH)}</td></tr></table></section>`
-    + whiskers(['Green on the timeline = the base can talk to Earth through you. The rover in Mission 2 gets exactly these windows.']);
-  let h = 0, speed = 3, playing = true, last = performance.now();
+    <tr><td>Contact with base</td><td>${pct(te.coverage)}</td></tr><tr><td>Contacts in 72 h</td><td>${te.windows.length}</td></tr>
+    <tr><td>Mean contact</td><td>${hrs(te.avgWindowH)}</td></tr><tr><td>Longest gap</td><td>${hrs(te.maxGapH)}</td></tr></table>`;
+  }
+  $('#side').innerHTML = `<section class="panel"><h3>Final orbit</h3>${readout()}</section>`
+    + whiskers(['Green on the timeline = the base can talk to Earth through you. Red = an outage. The rover in Mission 2 gets these windows.']);
+  const showEvent = () => {
+    sfx.alarm(); $('#pp').disabled = true;
+    $('#evbox').innerHTML = `<section class="event-box" role="alert"><span class="tag warn">Event · T+${fmt(ev.h, 1)} h</span>
+      <h3>Solar storm warning</h3>
+      <p>A burst of charged particles from the Sun will reach ${world.name} within the hour. Radiation can reset a satellite’s computer, and a reset takes ground control a long time to fix. Real operators weigh safety against uptime. What do you order?</p>
+      <div class="choice-grid">
+        <button class="choice" data-ev="safe"><b>Safe mode for ${D.STORM.safeH} h</b><span class="small muted">Antenna off until the storm passes. Contact is lost for sure during those ${D.STORM.safeH} hours, but the satellite is safe.</span></button>
+        <button class="choice" data-ev="ride"><b>Keep transmitting</b><span class="small muted">${Math.round(D.STORM.hitChance * 100)}% chance the computer resets and the satellite is silent for ${D.STORM.resetH} h. Otherwise nothing happens at all.</span></button>
+      </div></section>`;
+  };
+  const resolveEvent = (choice) => {
+    ev.choice = choice; ev.state = 'done';
+    ev.durH = choice === 'safe' ? D.STORM.safeH : ev.hit ? D.STORM.resetH : 0;
+    if (ev.durH) applyOutage(ev.h, ev.durH);
+    const lost = te.outage?.lostH || 0;
+    S.final.te = te; S.final.event = { choice, hit: choice === 'ride' && ev.hit, durH: ev.durH, lostH: lost };
+    const lostTxt = lost > 0 ? `${fmt(lost, 1)} h of contact lost` : 'no contact was due in that time, so nothing was lost';
+    const [kind, title, text] = choice === 'safe' ? ['good', 'Safe mode: storm survived', `Antenna off for ${D.STORM.safeH} h: ${lostTxt}. The satellite is unharmed.`]
+      : ev.hit ? ['bad', 'The storm reset the computer', `Ground control needed ${D.STORM.resetH} h to recover it: ${lostTxt}. A gamble that usually works can still cost more.`]
+      : ['info', 'You got away with it', 'No reset this time. Operators call that luck, not a plan.'];
+    $('#evbox').innerHTML = `<section class="event-box ${kind}" role="status"><b>${title}</b><span class="small">${text}</span></section>`;
+    $('#tlbar').innerHTML = bars();
+    if (kind === 'bad') sfx.bad(); else sfx.good();
+    $('#pp').disabled = false; $('#next').disabled = false; $('#next').removeAttribute('title');
+    ops.playing = true; $('#pp').textContent = 'Pause';
+    $('#side').querySelector('.readout').outerHTML = readout();
+  };
+  let last = performance.now();
   const step = () => {
     const now = performance.now(), dt = (now - last) / 1000; last = now;
-    if (playing) h = Math.min(72, h + dt * speed * (72 / 30));
-    const inView = t.windows.some((w) => h >= w.startH && h < w.endH);
+    if (ops.playing) ops.h = Math.min(72, ops.h + dt * ops.speed * (72 / 30));
+    const h = ops.h;
+    if (ev.state === 'pending' && h >= ev.h) { ev.state = 'open'; ops.playing = false; showEvent(); }
+    const inView = te.windows.some((w) => h >= w.startH && h < w.endH);
     if (globe) { globe.setSat(toGlobe(O.positionAt(el, h * 3600))); globe.spin.rotation.y = (2 * Math.PI * h) / (world.rotHours || world.dayHours); globe.setContact(inView); }
     if (S.view === 'gt' && $('#gt')) drawGroundTrack($('#gt'), world, track, { nowIndex: Math.min(track.length - 1, Math.round((h / 72) * (track.length - 1))) });
     const n = $('#tnow'); if (n) n.style.left = `${(h / 72) * 100}%`;
     const st = $('#tstat'); if (st) st.textContent = `T+${fmt(h, 1)} h · ${inView ? 'BASE IN CONTACT' : 'NO CONTACT'}`;
   };
-  makeGlobe($('#globe')).then((g) => { if (!g) return; globe = g; { g.setPlannerOrbit(O.orbitPath(el).map(toGlobe), toGlobe(O.periapsisPos(el)), toGlobe(O.apoapsisPos(el))); g.frame(Math.max(3.2, (el.ra / world.radiusKm) * 2.4)); } });
+  if (S.view === '3d') makeGlobe($('#globe')).then((g) => { if (!g) return; globe = g; { g.setPlannerOrbit(O.orbitPath(el).map(toGlobe), toGlobe(O.periapsisPos(el)), toGlobe(O.apoapsisPos(el))); g.frame(Math.max(3.2, (el.ra / world.radiusKm) * 2.4)); } });
   clearInterval(timer); timer = setInterval(step, S.view === 'gt' ? 120 : 40);
+  if (ev.state === 'open') showEvent();
   $('#main').onclick = (e) => {
     const b = e.target.closest('button'); if (!b) return;
-    if (b.id === 'pp') { playing = !playing; b.textContent = playing ? 'Pause' : 'Play'; }
-    if (b.dataset.speed) speed = Number(b.dataset.speed);
-    if (b.dataset.v) { S.view = b.dataset.v; go(4); }
-    if (b.id === 'next') { sfx.click(); go(5); }
+    if (e.detail > 0 && b.dataset.ev == null) b.blur(); // after a mouse click, Space goes back to play/pause
+    if (b.dataset.ev && ev.state === 'open') resolveEvent(b.dataset.ev);
+    if (b.id === 'pp' && ev.state !== 'open') { ops.playing = !ops.playing; b.textContent = ops.playing ? 'Pause' : 'Play'; }
+    if (b.dataset.speed) { ops.speed = Number(b.dataset.speed); document.querySelectorAll('[data-speed]').forEach((x) => x.classList.toggle('on', x === b)); }
+    if (b.dataset.v) { S.view = b.dataset.v; S.keepOps = true; go(4); }
+    if (b.id === 'next' && !b.disabled) { sfx.click(); go(5); }
   };
-  document.onkeydown = (e) => { if (e.key === ' ') { e.preventDefault(); $('#pp').click(); } if (e.key.toLowerCase() === 'g') $(`[data-v="${S.view === '3d' ? 'gt' : '3d'}"]`)?.click(); };
+  document.onkeydown = (e) => {
+    if (e.target.closest?.('input')) return;
+    if (e.key === ' ' && !e.target.closest?.('button,a')) { e.preventDefault(); $('#pp').click(); }
+    if (e.key.toLowerCase() === 'g') $(`[data-v="${S.view === '3d' ? 'gt' : '3d'}"]`)?.click();
+  };
 }
 
 /* ---------- 6 Debrief ---------- */
@@ -293,7 +352,7 @@ function debrief() {
     $('#again').onclick = (e) => { e.stopPropagation(); S.result = null; S.dv = null; S.fuelFactor = 1; S.retries = 0; go(3); };
     return;
   }
-  const { p, t } = S.final, left = D.BUDGET_M - d.cost, margin = d.cap - d.wet;
+  const { p, t: nominal, te, event } = S.final, t = te || nominal, left = D.BUDGET_M - d.cost, margin = d.cap - d.wet;
   const items = [
     ['Contact with the base', 35, Math.round(35 * Math.min(1, t.coverage / D.GOALS[wid])), `${pct(t.coverage)} of the time (goal ${pct(D.GOALS[wid])}).`],
     ['Contact length', 10, Math.round(10 * Math.min(1, t.avgWindowH / 2)), `Mean contact ${hrs(t.avgWindowH)}, longest gap ${hrs(t.maxGapH)}.`],
@@ -313,11 +372,15 @@ function debrief() {
   if (S.err >= 0.02) lessons.push('Vis-viva links speed and orbit size: a few metres per second of brake change the apoapsis by hundreds of kilometres. That is why real burns are planned to the metre per second.');
   if (S.retries) lessons.push('The first burn was too gentle and the satellite flew past. Below escape speed is the line between orbit and goodbye.');
   if (d.dvNeed > 1.5) lessons.push('Low orbits need a big brake, and fuel grows exponentially with Δv. That is why many relays use high, elliptical orbits.');
+  if (event?.choice === 'safe') lessons.push(`In the solar storm you chose safe mode: ${event.lostH > 0 ? `${fmt(event.lostH, 1)} h of contact lost` : 'no contact was due'}, but no risk. Operators often accept a small known loss to avoid a big unknown one.`);
+  if (event?.hit) lessons.push(`You kept transmitting and the storm reset the computer: ${event.durH} h of outage, longer than safe mode would have cost. A choice that works most of the time can still be the worse choice. That is risk management.`);
+  if (event?.choice === 'ride' && !event.hit) lessons.push('You kept transmitting through the storm and got away with it. Next time, ask what a reset would cost, not only how likely it is.');
   if (!lessons.length) lessons.push('A mission-grade design. Could a smaller rocket or antenna still meet the goal? Engineers always look for margin.');
-  const relay = { periodH: +t.cycleH.toFixed(2), windowH: +Math.min(t.avgWindowH, t.cycleH).toFixed(2), coverage: +t.coverage.toFixed(3), dataRate: d.an.rate, orbit: `${fmt(p.periAltKm)} × ${fmt(p.apoAltKm)} km` };
+  // The rover keeps the orbit's regular schedule; only the overall coverage reflects the storm outage.
+  const relay = { periodH: +nominal.cycleH.toFixed(2), windowH: +Math.min(nominal.avgWindowH, nominal.cycleH).toFixed(2), coverage: +t.coverage.toFixed(3), dataRate: d.an.rate, orbit: `${fmt(p.periAltKm)} × ${fmt(p.apoAltKm)} km` };
   saveMission(wid, 'orbit', { score, relay });
   const award = awardRun({ mission: 'orbit', world: wid, score, summary: `${relay.orbit}, ${pct(t.coverage)} contact`, badges,
-    decisions: [d.rk.name, d.an.name, d.pw.name, S.preset != null ? D.PRESETS[wid][S.preset].name : `i ${p.incDeg}°, ω ${p.argpDeg}°`, `Brake ${fmt(S.dv * 1000)} m/s`] });
+    decisions: [d.rk.name, d.an.name, d.pw.name, S.preset != null ? D.PRESETS[wid][S.preset].name : `i ${p.incDeg}°, ω ${p.argpDeg}°`, `Brake ${fmt(S.dv * 1000)} m/s`, event ? (event.choice === 'safe' ? 'Storm: safe mode' : 'Storm: kept transmitting') : null].filter(Boolean) });
   celebrate(award); if (score >= 65) sfx.good(); else sfx.bad();
   const stars = score >= 85 ? 3 : score >= 60 ? 2 : score >= 35 ? 1 : 0;
   $('#main').innerHTML = `<section class="panel stack"><div class="row" style="justify-content:space-between"><div><span class="tag ${score >= 65 ? 'good' : 'warn'}">${score >= 65 ? 'Relay online' : 'Relay weak'}</span>

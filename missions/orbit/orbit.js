@@ -112,11 +112,29 @@ export function contactTimeline(el, world, { hours = 72, minElevDeg = MIN_ELEV_D
   }
   if (open) { open.endH = hours; windows.push(open); }
   const coverage = visible / (steps + 1);
+  return { windows, coverage, ...windowStats(windows, hours), hours };
+}
+
+function windowStats(windows, hours) {
   const avgWindowH = windows.length ? windows.reduce((s, w) => s + (w.endH - w.startH), 0) / windows.length : 0;
   const cycleH = windows.length > 1 ? (windows[windows.length - 1].startH - windows[0].startH) / (windows.length - 1) : hours;
   let maxGapH = windows.length ? Math.max(windows[0].startH, hours - windows[windows.length - 1].endH) : hours;
   for (let k = 1; k < windows.length; k++) maxGapH = Math.max(maxGapH, windows[k].startH - windows[k - 1].endH);
-  return { windows, coverage, avgWindowH, cycleH, maxGapH, hours };
+  return { avgWindowH, cycleH, maxGapH };
+}
+
+/** The same timeline with the antenna silent from startH for durH hours (e.g. safe mode in a solar storm). */
+export function withOutage(t, startH, durH) {
+  const endH = startH + durH;
+  const windows = []; let lostH = 0;
+  for (const w of t.windows) {
+    const overlap = Math.max(0, Math.min(w.endH, endH) - Math.max(w.startH, startH));
+    if (overlap === 0) { windows.push({ ...w }); continue; }
+    lostH += overlap;
+    if (w.startH < startH) windows.push({ startH: w.startH, endH: startH });
+    if (w.endH > endH) windows.push({ startH: endH, endH: w.endH });
+  }
+  return { ...t, windows, ...windowStats(windows, t.hours), coverage: Math.max(0, t.coverage - lostH / t.hours), outage: { startH, endH, lostH } };
 }
 
 /* ---------- capture burn: arriving on a hyperbola, braking at periapsis ---------- */

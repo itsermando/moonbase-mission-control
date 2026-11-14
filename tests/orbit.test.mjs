@@ -67,6 +67,23 @@ test('rocket equation round-trips: fuel for a delta-v gives that delta-v back', 
   assert.ok(Math.abs(O.dvAvailable(dry, O.propellantKg(dry, dv)) - dv) < 1e-9);
 });
 
+test('an outage removes exactly the overlapping contact time', () => {
+  const t = { windows: [{ startH: 0, endH: 2 }, { startH: 10, endH: 12 }], coverage: 0.2, hours: 20, avgWindowH: 2, cycleH: 10, maxGapH: 8 };
+  const o = O.withOutage(t, 1, 10);
+  assert.deepEqual(o.windows, [{ startH: 0, endH: 1 }, { startH: 11, endH: 12 }]);
+  assert.ok(Math.abs(o.coverage - 0.1) < 1e-9);
+  assert.equal(o.maxGapH, 10);
+  assert.equal(o.outage.lostH, 2);
+});
+
+test('an outage that misses every window changes nothing', () => {
+  const t = { windows: [{ startH: 0, endH: 2 }], coverage: 0.1, hours: 20, avgWindowH: 2, cycleH: 20, maxGapH: 18 };
+  const o = O.withOutage(t, 5, 3);
+  assert.deepEqual(o.windows, t.windows);
+  assert.equal(o.coverage, t.coverage);
+  assert.equal(o.outage.lostH, 0);
+});
+
 test('an areostationary orbit stays over Jezero (planet turns at its sidereal rate)', () => {
   const el = O.elements({ periAltKm: 17032, apoAltKm: 17032, incDeg: 0, argpDeg: 0 }, mars);
   const a = O.subPoint(el, mars, 0), b = O.subPoint(el, mars, 24);

@@ -21,6 +21,10 @@ export const POWER = [
   { id: 'solarL', name: 'Large solar wings (400 W)', massKg: 45, costM: 14, powerW: 400, info: 'Powers any antenna.' },
 ];
 
+// Operations event: a solar storm. Safe mode costs a known time; keeping the antenna on risks a longer reset.
+// Expected loss is about equal on purpose (0.4 x 14 h vs 6 h), so the choice is about risk, not a trick.
+export const STORM = { safeH: 6, resetH: 14, hitChance: 0.4 };
+
 export const GOALS = { moon: 0.5, mars: 0.35, mercury: 0.35, ceres: 0.3 };
 export const LIMITS = {
   moon: { minPeri: 20, maxApo: 75000 }, mars: { minPeri: 120, maxApo: 25000 },
