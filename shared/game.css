@@ -97,3 +97,4 @@ small { color: var(--muted); font-size: 12px; }
 @media (prefers-reduced-motion: reduce) { *, *::before { animation: none !important; transition: none !important; } }
 /* keep the 3D view buttons clear of the HUD on smaller screens */
 @media (max-width: 1100px) { .hud.tr { top: auto; bottom: 12px; right: 12px; } .hud.tl { width: min(300px, calc(100% - 24px)); } }
+@media (max-width: 600px) { .viewport { min-height: 540px; } .hud.tl { padding: 8px; font-size: 13px; max-height: 45%; overflow-y: auto; } }

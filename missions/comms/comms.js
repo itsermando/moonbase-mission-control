@@ -57,7 +57,7 @@ function briefing() {
 }
 
 /* ---------- 2 Plan ---------- */
-function plan() {
+function plan(focus) {
   const tot = C.planTotals(chosen(), comp(), check());
   const est = Math.round(WINDOW_S * 2.2); // a typical player types about 2 bits per second
   $('#main').innerHTML = `<section class="panel stack"><h1>Plan the downlink</h1><p>Pick what to send and in what order. Anything you don’t finish before the window closes stays on the rover.</p>
@@ -79,17 +79,19 @@ function plan() {
     <div class="stat ${tot.bits > est ? 'bad' : 'good'}"><div class="lbl">Bits to type</div><div class="val">${tot.bits}</div></div>
     <div class="stat"><div class="lbl">You can type about</div><div class="val">${est}</div></div>
     <div class="stat"><div class="lbl">Science if all arrives</div><div class="val">${tot.value}</div></div></div></section>` + whiskers(tips);
-  $('#main').onchange = (e) => { const id = e.target.dataset.pk; if (!id) return; if (e.target.checked) S.skip.delete(id); else S.skip.add(id); sfx.select(); plan(); };
+  $('#main').onchange = (e) => { const id = e.target.dataset.pk; if (!id) return; if (e.target.checked) S.skip.delete(id); else S.skip.add(id); sfx.select(); plan(`[data-pk="${id}"]`); };
   $('#main').onclick = (e) => {
     const b = e.target.closest('button'); if (!b) return;
     const move = (id, d) => { const i = S.order.indexOf(id); const j = i + d; [S.order[i], S.order[j]] = [S.order[j], S.order[i]]; };
-    if (b.dataset.up) { move(b.dataset.up, -1); sfx.click(); plan(); }
-    if (b.dataset.down) { move(b.dataset.down, 1); sfx.click(); plan(); }
-    if (b.dataset.comp) { S.comp = b.dataset.comp; sfx.select(); plan(); }
-    if (b.dataset.check) { S.check = b.dataset.check; sfx.select(); plan(); }
+    // plan() redraws everything, so hand focus back to the control the player just used (keyboard play)
+    if (b.dataset.up) { move(b.dataset.up, -1); sfx.click(); plan(S.order[0] === b.dataset.up ? `[data-down="${b.dataset.up}"]` : `[data-up="${b.dataset.up}"]`); }
+    if (b.dataset.down) { move(b.dataset.down, 1); sfx.click(); plan(S.order[S.order.length - 1] === b.dataset.down ? `[data-up="${b.dataset.down}"]` : `[data-down="${b.dataset.down}"]`); }
+    if (b.dataset.comp) { S.comp = b.dataset.comp; sfx.select(); plan(`[data-comp="${b.dataset.comp}"]`); }
+    if (b.dataset.check) { S.check = b.dataset.check; sfx.select(); plan(`[data-check="${b.dataset.check}"]`); }
     if (b.id === 'back') go(0);
     if (b.id === 'next') { sfx.click(); go(2); }
   };
+  if (focus) $(focus)?.focus();
 }
 
 /* ---------- 3 Downlink: type the bits ---------- */
@@ -104,7 +106,7 @@ function downlink() {
     <div class="encoding-panel" style="min-height:0">
       <div class="progress-track"><div id="progress-fill"></div></div>
       <p class="instructions">Type the highlighted bit: <b>O</b> for 0, <b>X</b> for 1</p>
-      <div class="bits" id="target-message" aria-live="polite"></div>
+      <div class="bits" id="target-message"></div>
       <div class="input-buttons"><button type="button" id="b0">O<small>BINARY 0 · KEY O</small></button><button type="button" id="b1">X<small>BINARY 1 · KEY X</small></button></div>
       <p id="encoding-feedback" aria-live="polite">${par ? 'The last bit of each byte is the parity bit.' : 'No error check: watch out for noise.'}</p>
       <div class="linkbar"><span class="end">Rover</span><span class="hop">Relay</span><span class="end">Earth</span><i class="pulse" id="pulse"></i></div>
@@ -113,7 +115,11 @@ function downlink() {
   const press = (bit) => {
     if (dl.done) return;
     const cur = dl.queue[dl.qi];
-    if (bit !== cur.byte[dl.pos]) { dl.mistakes++; dl.time = Math.max(0, dl.time - 2); sfx.bad(); $('#encoding-feedback').textContent = 'Wrong bit! −2 s'; draw(); return; }
+    if (bit !== cur.byte[dl.pos]) {
+      dl.mistakes++; dl.time = Math.max(0, dl.time - 2); sfx.bad(); $('#encoding-feedback').textContent = 'Wrong bit! −2 s'; draw();
+      if (dl.time === 0) { toast('The relay dropped below the horizon. Link closed.', 'bad'); finishDownlink(); }
+      return;
+    }
     sfx.click(); dl.pos++; dl.typed++;
     if (dl.pos === cur.byte.length) sendByte(cur);
     draw();
@@ -216,7 +222,7 @@ function debrief() {
     <div>${items.map(([l, m, p, w], n) => `<div class="check rise" style="--i:${n}"><span class="tag ${p >= m * 0.8 ? 'good' : p >= m * 0.4 ? 'warn' : 'bad'}">${p}/${m}</span><div><b>${l}</b><div class="small muted">${w}</div></div></div>`).join('')}</div>
     <h2>Why it went this way</h2><ul>${lessons.map((l) => `<li>${l}</li>`).join('')}</ul>
     <div class="panel" style="background:var(--panel-2)"><h2>Campaign total: ${total} / 300</h2><p>Orbit, rover and comms together. Every mission’s choices shaped the next one.</p></div>
-    <div class="row"><a href="../../index.html"><button class="primary big">Back to mission control</button></a><button id="again">Send again</button></div></section>`;
+    <div class="row"><a href="../../hub.html"><button class="primary big">Back to mission control</button></a><button id="again">Send again</button></div></section>`;
   $('#side').innerHTML = whiskers(['Real missions do this every day: NASA’s Deep Space Network talks to dozens of spacecraft, from the Moon to beyond the planets.']);
   $('#again').onclick = () => { S.ul = null; go(1); };
 }

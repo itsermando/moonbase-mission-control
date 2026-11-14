@@ -1,5 +1,5 @@
 // Rover mission screens: Briefing, Landing site, Build, Test. Deploy and Debrief live in deploy.js / debrief.js.
-import { LIMITS, objectivesFor, findObjective, SLOTS, PARTS, summarize, defaultDesign, BUS } from './parts.js';
+import { LIMITS, objectivesFor, findObjective, scaledObjective, SLOTS, PARTS, summarize, defaultDesign, BUS } from './parts.js';
 import { cells, SLOPE_TEXT, SOURCE_NOTE, useWorld, sunAt, WORLD_ID, relayInfo } from './world.js';
 import { mountShell } from '../../shared/shell.js';
 import { getWorldId, relaySchedule, isClassMode } from '../../shared/campaign.js';
@@ -48,7 +48,7 @@ export function meter(label, value, max, unit, opts = {}) {
 function stageBar() {
   const idx = STAGES.findIndex(([id]) => id === S.stage);
   $('#stages').innerHTML = STAGES.map(([id, label], n) =>
-    `<span class="stage ${n < idx ? 'done' : n === idx ? 'now' : ''}">${n + 1} ${label}</span>`).join('');
+    `<span class="stage ${n < idx ? 'done' : n === idx ? 'now' : ''}" ${n === idx ? 'aria-current="step"' : ''}>${n + 1} ${label}</span>`).join('');
 }
 
 export function capcomPanel(tips) {
@@ -60,7 +60,7 @@ export function capcomPanel(tips) {
 
 function budgetPanel() {
   const sum = summarize(S.design);
-  const obj = S.objectiveId && findObjective(S.objectiveId);
+  const obj = S.objectiveId && scaledObjective(findObjective(S.objectiveId), isClassMode());
   return `<section class="panel" id="budget"><h3>Mission budget</h3>
     ${meter('Mass on the lander', sum.massKg, LIMITS.landerCapacityKg, 'kg')}
     ${meter('Money', sum.costM + S.testsRun * LIMITS.testCostM, LIMITS.budgetM, '$M')}
@@ -83,11 +83,11 @@ function briefing() {
     <p class="small muted">${mars ? 'The map is Jezero crater from NASA Mars Trek (heights approximate).' : 'The 3D terrain is real: height and slope from NASA’s Lunar Reconnaissance Orbiter laser altimeter (LOLA).'}</p>
     <p class="lastline ${RELAY.assumed ? '' : 'good'}">${RELAY.assumed ? `No relay satellite flown yet: you get a standard relay (${r.windowH} h of contact every ${r.periodH} h). Fly Mission 1 first to design your own.` : `Your relay from Mission 1: ${r.windowH.toFixed(1)} h of contact about every ${r.periodH.toFixed(1)} h.`}</p></div>
     <h2>Choose your objective</h2>
-    <div class="grid">${objectivesFor(WORLD_ID).map((o) => `<button class="card obj ${S.objectiveId === o.id ? 'selected' : ''}" data-obj="${o.id}">
+    <div class="grid">${objectivesFor(WORLD_ID).map((o) => `<button class="card obj ${S.objectiveId === o.id ? 'selected' : ''}" data-obj="${o.id}" aria-pressed="${S.objectiveId === o.id}">
       <span class="tag ${o.level === 'Easy' ? 'good' : o.level === 'Medium' ? 'warn' : 'bad'}">${o.level}</span>
       <h3 style="margin-top:8px">${o.title}</h3><p class="small">${o.goal}</p>${isClassMode() ? '<p class="small muted">Class mode: half the target.</p>' : ''}</button>`).join('')}</div>
     <h2>Crew</h2>
-    <div class="row">${[1, 2, 3, 4].map((n) => `<button data-players="${n}" class="${S.players === n ? 'primary' : ''}">${n} player${n > 1 ? 's' : ''}</button>`).join('')}</div>
+    <div class="row">${[1, 2, 3, 4].map((n) => `<button data-players="${n}" class="${S.players === n ? 'primary' : ''}" aria-pressed="${S.players === n}">${n} player${n > 1 ? 's' : ''}</button>`).join('')}</div>
     <p class="small muted">${S.players > 1 ? 'Team mode: each part of the rover is owned by a role (Mission lead, Engineer, Scientist, Comms). Pass the laptop and agree together before launch.' : 'Solo: you play every role.'}</p>
     <div class="row"><button class="primary big" id="next" ${S.objectiveId ? '' : 'disabled'}>Choose a landing site</button></div></section>`;
   side().innerHTML = capcomPanel(hint('briefing', {}));
@@ -102,7 +102,7 @@ function briefing() {
 /* ---------- 2 Landing site ---------- */
 function mapControls() {
   return `<div class="row small" role="group" aria-label="Map view">
-    ${[['terrain', 'Terrain'], ['slope', 'NASA slope map'], ['sun', 'Sunlight']].map(([v, l]) => `<button data-view="${v}" class="${S.view === v ? 'primary' : ''}">${l}</button>`).join('')}</div>`;
+    ${[['terrain', 'Terrain'], ['slope', 'NASA slope map'], ['sun', 'Sunlight']].map(([v, l]) => `<button data-view="${v}" class="${S.view === v ? 'primary' : ''}" aria-pressed="${S.view === v}">${l}</button>`).join('')}</div>`;
 }
 export function legend() {
   if (WORLD_ID === 'mars') return `<div class="legend"><span><i style="background:rgba(70,194,138,.6)"></i>Safe to land</span>
@@ -113,12 +113,28 @@ export function legend() {
     <span><i style="background:#ffd166"></i>Planned route</span></div><p class="small muted" style="margin-top:6px">${SOURCE_NOTE}</p>`;
 }
 
+/** A safe landing square close to what the objective needs (a keyboard-friendly alternative to clicking the map). */
+function suggestSite() {
+  const obj = findObjective(S.objectiveId), mars = WORLD_ID === 'mars';
+  const kinds = mars ? (obj?.needKinds?.includes('delta') ? ['delta'] : []) : obj?.id === 'dark' ? ['floor'] : obj?.id === 'ice' ? ['trap'] : [];
+  const goals = kinds.length ? cells.filter((c) => kinds.includes(c.kind)) : [];
+  const mid = (cells.length ? Math.sqrt(cells.length) : 48) / 2;
+  let best = null, bestScore = -Infinity;
+  for (const c of cells) {
+    if (c.slope !== 0 || c.kind !== 'plain') continue;
+    const near = goals.length ? Math.min(...goals.map((g) => Math.hypot(g.i - c.i, g.j - c.j))) : mars ? Math.hypot(c.i - mid, c.j - mid) : 0;
+    const score = (mars ? 0 : c.sun * 15) - near;
+    if (score > bestScore) { bestScore = score; best = c; }
+  }
+  return best;
+}
+
 function site() {
   const c = S.siteK != null ? cells[S.siteK] : null;
   main().innerHTML = `<section class="panel stack"><div><h1>Pick a landing site</h1>
-    <p>${WORLD_ID === 'mars' ? 'Click a green square. The river delta (blue outlines) and the crater rim (gold dots) hold the most valuable rocks.' : 'Click a green square. Landers tip over on slopes above about 10°. Ice is in the blue-outlined cold traps and in the dark crater.'}</p></div>
+    <p>${WORLD_ID === 'mars' ? 'Click a green square, or press Suggest a safe site. The river delta (blue outlines) and the crater rim (gold dots) hold the most valuable rocks.' : 'Click a green square, or press Suggest a safe site. Landers tip over on slopes above about 10°. Ice is in the blue-outlined cold traps and in the dark crater.'}</p></div>
     ${mapControls()}<div class="mapwrap"><canvas id="map" aria-label="Map of the landing area"></canvas><div class="tip" id="tip" hidden></div></div>${legend()}
-    <div class="row"><button id="back">Back</button><button class="primary" id="next" ${c ? '' : 'disabled'}>Build the rover</button>
+    <div class="row"><button id="back">Back</button><button id="suggest" title="Pick a safe square near what your objective needs">Suggest a safe site</button><button class="primary" id="next" ${c ? '' : 'disabled'}>Build the rover</button>
     <span class="small muted">${c ? `Selected: slope ${SLOPE_TEXT[c.slope]}${WORLD_ID === 'mars' ? '' : `, sunlight ${Math.round(sunAt(c, 0) * 100)}%, ${c.elev >= 150 ? 'Earth in view' : 'no direct Earth view'}`}` : 'No site yet'}</span></div></section>`;
   const canvas = $('#map');
   const redraw = () => draw(canvas, { view: S.view, mode: 'site', siteK: S.siteK, hover: S.hover });
@@ -130,7 +146,7 @@ function site() {
       const ok = h.slope === 0 && h.kind === 'plain';
       tip.innerHTML = `<b>${ok ? 'Safe to land' : 'Not safe to land'}</b><br>Slope ${SLOPE_TEXT[h.slope]}${WORLD_ID === 'mars' ? ` · ${h.kind === 'plain' ? 'open plain' : h.kind}` : ` · Sun ${Math.round(sunAt(h, 0) * 100)}%<br>${h.elev >= 150 ? 'Earth in view' : 'No direct Earth view'}`}`;
       const r = canvas.getBoundingClientRect();
-      tip.style.left = `${Math.min(r.width - 200, e.clientX - r.left + 14)}px`; tip.style.top = `${e.clientY - r.top + 10}px`; tip.hidden = false;
+      tip.style.left = `${Math.max(4, Math.min(r.width - 200, e.clientX - r.left + 14))}px`; tip.style.top = `${e.clientY - r.top + 10}px`; tip.hidden = false;
     }
     if (h === S.hover) return;
     S.hover = h; redraw(); side().innerHTML = capcomPanel(hint('site', { cell: h }));
@@ -145,6 +161,7 @@ function site() {
     const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.view) { S.view = b.dataset.view; site(); }
     if (b.id === 'back') go('briefing');
+    if (b.id === 'suggest') { const best = suggestSite(); if (best) { S.siteK = best.k; S.tests = null; sfx.select(); site(); $('#next')?.focus(); } }
     if (b.id === 'next') { sfx.click(); go('build'); }
   };
   side().innerHTML = capcomPanel(hint('site', { cell: c }));
@@ -190,8 +207,10 @@ function build() {
   }).catch(() => { $('#preview').innerHTML = '<p class="small muted">3D preview needs an internet connection.</p>'; });
   main().onchange = (e) => {
     if (!e.target.name) return;
-    S.design[e.target.name] = e.target.value; S.tests = null; sfx.select();
+    const slotId = e.target.name;
+    S.design[slotId] = e.target.value; S.tests = null; sfx.select();
     for (const slot of SLOTS) $(`#slot-${slot.id}`).innerHTML = partCards(slot);
+    $(`#slot-${slotId} input:checked`)?.focus(); // keep keyboard users in the group they were using
     buildSide();
     if (preview) preview.setDesign(S.design);
   };

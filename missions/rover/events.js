@@ -9,7 +9,7 @@ export const EVENTS = [
     id: 'dust', title: 'Dust on the solar panels',
     when: (s, ctx) => s.rover.solarW > 0 && ctx.action === 'drive',
     weight: 1,
-    text: 'Driving kicked up moon dust. It is electrically charged and sticks to everything. Your panels now make 25% less power.',
+    text: 'Driving kicked up dust. It sticks to everything (on the Moon it is even electrically charged). Your panels now make 25% less power.',
     apply: (s) => { s.dust = Math.min(0.5, s.dust + 0.25); },
     choices: [
       { label: 'Tilt and shake the panels (1 h)', run: (s, eng) => { eng.wait(s, 1); s.dust = 0; return 'Panels clean. Full power again.'; } },
@@ -67,7 +67,7 @@ export const EVENTS = [
   },
   {
     id: 'heater', title: 'Heater circuit fault',
-    when: (s) => s.rover.therm.id === 'heaters',
+    when: (s) => s.rover.therm.id === 'heaters' && !s.rover.warm && !s.damage.noHeater,
     weight: 0.5,
     text: 'A heater circuit stopped working. Without heat, electronics freeze within hours in shadow (about -200 °C).',
     choices: [

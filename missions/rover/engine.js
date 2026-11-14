@@ -1,6 +1,6 @@
 // Rover mission rules: power, temperature, driving, digging, scanning and scoring.
 // Pure logic (no screen code) so it can be tested with `npm test`.
-import { LIMITS, summarize, findObjective } from './parts.js';
+import { LIMITS, summarize, findObjective, scaledObjective } from './parts.js';
 import { cells, cellAt, sunAt, commsAt, findPath, stepCost, CELL_M, WORLD_ID, KIND_TEXT } from './world.js';
 import { rollEvent } from './events.js';
 
@@ -11,9 +11,8 @@ function rng(seed) {
 
 export function newRun({ design, objectiveId, siteK, testsRun = 0, seed = 2026, classMode = false }) {
   const rover = { ...summarize(design), alive: true };
-  const base = findObjective(objectiveId);
   // Class mode: a 7-day mission with half the target, so it fits in a lesson.
-  const objective = classMode ? { ...base, target: base.metric === 'samples' ? Math.ceil(base.target / 2) : base.target / 2 } : base;
+  const objective = scaledObjective(findObjective(objectiveId), classMode);
   return {
     design, rover, objective, world: WORLD_ID, classMode,
     limits: { ...LIMITS, missionHours: classMode ? 168 : LIMITS.missionHours },
@@ -63,7 +62,7 @@ export function wait(s, hours, extraW = 0) {
         s.stats.brownouts++;
         say(s, `Battery empty. The rover shut down and slowly recharged ${s.rover.rtgW ? 'from its RTG' : 'in the sunlight'}. Lost 6 hours.`, 'bad');
         s.t += 6;
-        s.batteryWh = Math.min(s.rover.batteryWh, (s.rover.solarW * sun * (1 - s.dust) + s.rover.rtgW - LIMITS.baseLoadW) * 6);
+        s.batteryWh = Math.max(0, Math.min(s.rover.batteryWh, (s.rover.solarW * sun * (1 - s.dust) + s.rover.rtgW - LIMITS.baseLoadW) * 6));
       } else {
         return end(s, 'battery', 'The battery ran out in the dark. With no power for heaters, the rover froze.');
       }

@@ -75,12 +75,12 @@ function showEvent() {
   const r = S.run, box = $('#ev');
   if (!S.event && !S.eventMsg) { box.innerHTML = ''; return; }
   if (S.eventMsg) {
-    box.innerHTML = `<div class="overlay"><div class="panel stack pop"><h2>${S.eventMsg.title}</h2><p>${S.eventMsg.text}</p>
+    box.innerHTML = `<div class="overlay" role="dialog" aria-label="${S.eventMsg.title}" style="overflow:auto"><div class="panel stack pop"><h2>${S.eventMsg.title}</h2><p>${S.eventMsg.text}</p>
       <div class="row"><button class="primary" id="ev-ok">Continue</button></div></div></div>`;
     $('#ev-ok').focus(); return;
   }
   const ev = S.event, link = E.link(r).ok;
-  box.innerHTML = `<div class="overlay" role="dialog" aria-label="${ev.title}"><div class="panel stack pop alert"><span class="tag warn">Surprise · Day ${Math.floor(r.t / 24) + 1}</span><h2>${ev.title}</h2><p>${ev.text}</p>
+  box.innerHTML = `<div class="overlay" role="alertdialog" aria-label="${ev.title}" style="overflow:auto"><div class="panel stack pop alert"><span class="tag warn">Surprise · Day ${Math.floor(r.t / 24) + 1}</span><h2>${ev.title}</h2><p>${ev.text}</p>
     ${link ? ev.choices.map((c, n) => `<button data-choice="${n}" ${!c.needs || c.needs(r) ? '' : 'disabled'}>${c.label}</button>`).join('')
       : `<p class="small"><span class="tag bad">No link to Earth</span> The rover must act on its own.</p><button class="primary" data-choice="auto">See what the rover does</button>`}
   </div></div>`;
@@ -100,6 +100,7 @@ async function act(kind, arg) {
   ui.busy = true; updateHud();
   let ev = null;
   const t0 = r.t;
+  try {
   if (kind === 'drive') {
     const plan = arg || S.plan; if (!plan) { ui.busy = false; return; }
     ev = E.drive(r, plan); sfx.drive();
@@ -126,6 +127,7 @@ async function act(kind, arg) {
     ev = E.rest(r, arg);
     if (ui.scene) await timelapse(t0, r.t);
   }
+  } catch (err) { console.warn('Animation failed, continuing', err); }
   ui.busy = false;
   overlay(); updateHud(); announceNewLog();
   if (ev) { S.event = ev; sfx.alarm(); showEvent(); return; }
@@ -155,7 +157,7 @@ function onHover(k, ev) {
       : r.scanned.has(k) ? `<br>Ice: <b>${c.ice.toFixed(1)}%</b>` : c.kind !== 'plain' ? '<br>Ice: unknown, scan to find out' : ''}
     <br>${k === r.k ? 'Rover is here' : p ? `${p.hours.toFixed(1)} h · ${(p.wh / 1000).toFixed(2)} kWh ${p.tooFar ? '<span class="neg">too far for the battery</span>' : ''}` : '<span class="neg">No safe route</span>'}`;
   const vp = $('#vp').getBoundingClientRect();
-  tip.style.left = `${Math.min(vp.width - 240, ev.clientX - vp.left + 16)}px`;
+  tip.style.left = `${Math.max(8, Math.min(vp.width - 240, ev.clientX - vp.left + 16))}px`;
   tip.style.top = `${Math.max(8, ev.clientY - vp.top - 10)}px`;
   tip.hidden = false;
 }
@@ -175,8 +177,9 @@ function onPick(k) {
 }
 
 function keys(e) {
+  if (!e.key || e.ctrlKey || e.metaKey || e.altKey) return; // keep browser shortcuts (Ctrl+R, Ctrl+F...) from moving the rover
   const el = e.target instanceof Element ? e.target : null;
-  if (S.stage !== 'deploy' || el?.closest('input,textarea,select,summary')) return;
+  if (S.stage !== 'deploy' || !ui || el?.closest('input,textarea,select,summary')) return;
   if ((e.key === ' ' || e.key === 'Enter') && el?.closest('button')) return; // let the focused button handle it
   const r = S.run, c = cells[r.k];
   const dir = { w: [0, -1], arrowup: [0, -1], s: [0, 1], arrowdown: [0, 1], a: [-1, 0], arrowleft: [-1, 0], d: [1, 0], arrowright: [1, 0] }[e.key.toLowerCase()];
@@ -205,7 +208,7 @@ export async function renderDeploy(capcomPanel) {
       <div class="hud tr row">
         <button id="v-3d" class="primary" title="3D view">3D</button><button id="v-2d" title="Flat NASA map">2D map</button>
         <button id="v-chase" title="Follow the rover">Follow</button><button id="v-over" title="Isometric view of the whole area">Iso view</button>
-        <button id="v-mute" aria-pressed="${isMuted()}">${isMuted() ? 'Sound off' : 'Sound on'}</button>
+        <button id="v-mute" aria-pressed="${!isMuted()}">${isMuted() ? 'Sound off' : 'Sound on'}</button>
       </div>
       <div class="tip" id="tip" hidden></div>
       <div id="banner"></div>
@@ -215,7 +218,7 @@ export async function renderDeploy(capcomPanel) {
       <p class="small" id="plan"></p><p class="lastline" id="lastline" aria-live="polite"></p>
       <div class="row">
         <button class="primary" id="a-drive">Drive <span class="kbd">Enter</span></button>
-        <button id="a-dig2"></button><button id="a-dig6">${WORLD_ID === 'mars' ? 'Drill 6 h' : 'Dig 6 h'}</button><button id="a-digauto" title="Dig in 2-hour blocks until the battery is at 30%">Auto-dig to 30%</button>
+        <button id="a-dig2"></button><button id="a-dig6">${WORLD_ID === 'mars' ? 'Drill 6 h' : 'Dig 6 h'}</button><button id="a-digauto" ${WORLD_ID === 'mars' ? 'hidden' : ''} title="Dig in 2-hour blocks until the battery is at 30%">Auto-dig to 30%</button>
         <button id="a-scan" title="${S.run.rover.sci.scan ? 'Reveal buried ice nearby (1 h)' : 'Needs the neutron spectrometer'}">Scan <span class="kbd">F</span></button>
         <button id="a-rest">Rest 4 h <span class="kbd">R</span></button>
         <button id="a-end">End mission</button>
@@ -267,7 +270,7 @@ export async function renderDeploy(capcomPanel) {
     else if (id === 'v-3d' && ui.scene) setFlat(false);
     else if (id === 'v-chase' && ui.scene) ui.scene.chase();
     else if (id === 'v-over' && ui.scene) ui.scene.overview();
-    else if (id === 'v-mute') { setMuted(!isMuted()); b.textContent = isMuted() ? 'Sound off' : 'Sound on'; b.setAttribute('aria-pressed', isMuted()); }
+    else if (id === 'v-mute') { setMuted(!isMuted()); b.textContent = isMuted() ? 'Sound off' : 'Sound on'; b.setAttribute('aria-pressed', String(!isMuted())); }
   };
 
   flat.onmousemove = (e) => { const c = cellFromEvent(flat, e); onHover(c ? c.k : null, e); drawFlat(); };
@@ -293,7 +296,7 @@ function setFlat(on) {
 
 async function landing() {
   S.landed = true;
-  if (!ui.scene) { toast('Touchdown on the Shackleton rim.', 'good'); return; }
+  if (!ui.scene) { toast(WORLD_ID === 'mars' ? 'Touchdown in Jezero crater.' : 'Touchdown on the Shackleton rim.', 'good'); return; }
   ui.busy = true; updateHud();
   const banner = $('#banner');
   banner.innerHTML = '<div class="banner"><span class="tag accent">Powered descent</span><h2 id="bn-text">Altitude 2,000 m</h2><button id="skip" class="small">Skip</button></div>';

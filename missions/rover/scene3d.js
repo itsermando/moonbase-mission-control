@@ -15,6 +15,14 @@ function configure() {
 }
 const ROVER_SCALE = 0.55; // shown much bigger than real so you can see it
 
+/** Free GPU buffers (and optionally materials/textures) of an object tree. */
+function disposeTree(root, { materials = false } = {}) {
+  root.traverse((o) => {
+    o.geometry?.dispose();
+    if (materials && o.material) for (const m of [].concat(o.material)) { m.map?.dispose(); m.dispose(); }
+  });
+}
+
 function elevAt(fx, fz) {
   // bilinear sample in cell units, (0,0) = centre of the top-left cell
   const x = Math.max(0, Math.min(N - 1.001, fx)), z = Math.max(0, Math.min(N - 1.001, fz));
@@ -95,12 +103,18 @@ export class MoonScene {
     this.setSunTime(0);
   }
 
-  /** The Sun circles the horizon once per lunar day (about 708 hours), only a few degrees up. */
+  /** Moon: the Sun circles the horizon once per lunar day (about 708 hours), only a few degrees up. Mars: it rises and sets every sol. */
   setSunTime(t) {
-    const az = (t / 708) * Math.PI * 2 + 0.6, el = 0.12;
+    let az = (t / 708) * Math.PI * 2 + 0.6, el = 0.12, power = 1;
+    if (this.mars) {
+      const ph = (2 * Math.PI * (t + 3)) / 24.66, s = Math.sin(ph); // same clock as sunAt() in world.js
+      az = 0.6 + ph * 0.5; el = 0.08 + 0.8 * s; power = Math.max(0, Math.min(1, s * 4));
+    }
     const d = new THREE.Vector3(Math.cos(az) * Math.cos(el), Math.sin(el), Math.sin(az) * Math.cos(el));
     this.sun.position.copy(d.clone().multiplyScalar(120));
+    this.sun.intensity = 3.2 * power;
     this.sunDisc.position.copy(d.clone().multiplyScalar(560));
+    this.sunDisc.visible = el > 0;
   }
 
   addTerrain(overlayCanvas) {
@@ -213,7 +227,7 @@ export class MoonScene {
   }
 
   setRover(design, k) {
-    if (this.rover) this.scene.remove(this.rover);
+    if (this.rover) { this.scene.remove(this.rover); disposeTree(this.rover); }
     this.rover = buildRover(design); this.rover.scale.setScalar(ROVER_SCALE);
     this.rover.traverse((o) => { if (o.isMesh) o.castShadow = true; });
     this.scene.add(this.rover);
@@ -398,7 +412,9 @@ export class MoonScene {
   }
 
   dispose() {
-    cancelAnimationFrame(this.raf); this.ro.disconnect(); this.controls.dispose(); this.renderer.dispose();
+    cancelAnimationFrame(this.raf); this.ro.disconnect(); this.controls.dispose();
+    disposeTree(this.scene, { materials: true });
+    this.renderer.dispose(); this.renderer.forceContextLoss();
     this.renderer.domElement.remove();
   }
 }
@@ -430,7 +446,7 @@ export class RoverPreview {
     loop();
   }
   setDesign(design) {
-    if (this.rover) this.scene.remove(this.rover);
+    if (this.rover) { this.scene.remove(this.rover); disposeTree(this.rover); }
     this.rover = buildRover(design); this.scene.add(this.rover);
     this.rover.scale.setScalar(0.001);
     const t0 = performance.now();
@@ -438,5 +454,9 @@ export class RoverPreview {
     grow();
   }
   resize() { const w = this.el.clientWidth || 300, h = this.el.clientHeight || 220; this.renderer.setSize(w, h, false); this.camera.aspect = w / h; this.camera.updateProjectionMatrix(); }
-  dispose() { cancelAnimationFrame(this.raf); this.ro.disconnect(); this.renderer.dispose(); this.renderer.domElement.remove(); }
+  dispose() {
+    cancelAnimationFrame(this.raf); this.ro.disconnect();
+    disposeTree(this.scene, { materials: true });
+    this.renderer.dispose(); this.renderer.forceContextLoss(); this.renderer.domElement.remove();
+  }
 }

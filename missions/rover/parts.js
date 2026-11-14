@@ -50,6 +50,8 @@ export const MARS_OBJECTIVES = [
 
 export const objectivesFor = (worldId) => (worldId === 'mars' ? MARS_OBJECTIVES : OBJECTIVES);
 export const findObjective = (id) => [...OBJECTIVES, ...MARS_OBJECTIVES].find((o) => o.id === id);
+/** Class mode halves the target so a whole campaign fits in a lesson. */
+export const scaledObjective = (o, classMode) => (!o || !classMode ? o : { ...o, target: o.metric === 'samples' ? Math.ceil(o.target / 2) : o.target / 2 });
 
 // role: who decides this slot in team mode (up to 4 players)
 export const SLOTS = [
