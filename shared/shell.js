@@ -36,7 +36,7 @@ export function renderShell() {
   }).join('<span class="link" aria-hidden="true"></span>');
   el.className = 'shell';
   el.innerHTML = `
-    <a class="logo" href="${b}index.html" aria-label="Cat on Moon home">${catSVG(0, 34, { title: 'Cat on Moon' })}<span><b>Cat on Moon</b><small>Mission Control</small></span></a>
+    <a class="logo" href="${b}hub.html" aria-label="Cat on Moon mission control">${catSVG(0, 34, { title: 'Cat on Moon' })}<span><b>Cat on Moon</b><small>Mission Control</small></span></a>
     <nav class="track" aria-label="Campaign missions">${track}</nav>
     <span class="chip world" title="${world.tierLabel}">${world.name}${isClassMode() ? ' · Class mode' : ''}</span>
     <span class="score-chip" title="Campaign score">${campaignScore(world.id)} <small>/ ${world.missions.length * 100}</small></span>

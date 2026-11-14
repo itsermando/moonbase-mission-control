@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <link rel="icon" href="shared/favicon.svg" type="image/svg+xml">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Moonbase Mission Control | Cat on Moon</title>
+  <meta name="description" content="A decision-based teaching game: design a relay satellite, a rover and a radio link, fly them on real NASA maps of the Moon and Mars, and learn why missions succeed or fail.">
+  <link rel="stylesheet" href="shared/style.css">
+  <link rel="stylesheet" href="shared/game.css">
+  <link rel="stylesheet" href="shared/shell.css">
+  <link rel="stylesheet" href="shared/hub.css">
+  <script type="importmap">
+    { "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+    } }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap">
+  <link rel="stylesheet" href="shared/cyber.css">
+</head>
+<body>
+  <header id="shell"></header>
+  <main class="hub">
+    <section class="hero">
+      <div id="hero-text" class="hero-text"></div>
+      <div class="hero-visual"><div id="hero-globe" class="hero-globe" aria-label="Rotating globe of the selected world, from NASA mosaics"></div><p id="hero-world" class="hero-world"></p></div>
+    </section>
+
+    <section class="panel">
+      <div class="row" style="justify-content:space-between"><h2>Your campaign</h2><span class="score-big" id="camp-score"></span></div>
+      <p class="small muted">Each mission hands its result to the next one. Fly them in order for the full story.</p>
+      <div class="track-row" id="track"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Choose your world</h2>
+      <p class="small muted">Planet pictures are NASA global mosaics (LRO, Viking, MESSENGER, Dawn) from NASA Solar System Treks.</p>
+      <div class="wgrid" id="worlds"></div>
+    </section>
+
+    <section class="panel">
+      <div class="row" style="justify-content:space-between"><h2>Crew</h2><a href="profile.html" class="small">Profiles and history →</a></div>
+      <div class="row" id="crew"></div>
+      <p class="small muted" id="crew-note"></p>
+      <label class="switch"><input type="checkbox" id="classmode"> <span><b>Class mode</b>: shorter missions with smaller targets, so a whole campaign fits in one lesson.</span></label>
+    </section>
+
+    <section class="panel golden-panel">
+      <figure class="golden"><img src="shared/golden-record.jpg" alt="The Voyager Golden Record and the Voyager spacecraft" loading="lazy" width="981" height="552"></figure>
+      <div class="stack">
+        <h2>Soundtrack: a message to the stars</h2>
+        <p>In 1977 NASA sent the Voyager Golden Record into space with the sounds of Earth. Our game has its own original space score, made live in your browser, and real Apollo 11 radio calls at the big moments.</p>
+        <div class="row"><button class="primary" id="play-music" data-music>Play the soundtrack</button><span class="small muted">Picture: NASA/JPL-Caltech</span></div>
+      </div>
+    </section>
+
+    <footer class="hubfoot small muted">
+      <p>Team Cat on Moon (Jeongha, David, Emad) · NASA Space Apps Challenge 2026 · “Space Mission Design Game”. Data: NASA LRO LOLA and WAC, Mars Trek (MOLA, HRSC, CTX, Viking), MESSENGER, Dawn; constants from NASA/JPL. Built with three.js. <a href="about.html#credits">All credits</a></p>
+    </footer>
+  </main>
+  <script type="module" src="shared/hub.js"></script>
+</body>
+</html>

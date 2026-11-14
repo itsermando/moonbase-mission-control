@@ -30,12 +30,13 @@ No build step. Any static web server works (ES modules don't load from `file://`
 python -m http.server 5173
 ```
 
-Open http://localhost:5173. Tests: `npm test` (Node 20+): 30 tests covering orbit physics against real missions, terrain rules, design limits, Mars rules, the parity code and the hand-offs between missions.
+Open http://localhost:5173 for the landing page, or http://localhost:5173/hub.html to go straight to Mission Control. Tests: `npm test` (Node 20+): over 30 tests covering orbit physics against real missions, contact outages, terrain rules, design limits, Mars rules, the parity code and the hand-offs between missions. They also run on every push through GitHub Actions (`.github/workflows/test.yml`).
 
 ## Project layout
 | Path | What it is |
 |---|---|
-| `index.html`, `shared/hub.js` | Mission control hub: globe, campaign track, worlds, crew, class mode |
+| `index.html`, `shared/landing.*` | Landing page: what the game is, the three missions, worlds, teachers, team |
+| `hub.html`, `shared/hub.js` | Mission control hub: globe, campaign track, worlds, crew, class mode |
 | `profile.html`, `about.html` | Profiles; Briefing Room for judges and teachers |
 | `shared/` | HUD shell, profiles, campaign hand-offs, worlds and constants, globe, sounds, styles |
 | `missions/orbit/` | Mission 1: two-body orbit physics (`orbit.js`), catalogue (`data.js`), screens (`ui.js`) |

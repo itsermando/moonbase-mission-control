@@ -2,13 +2,15 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <link rel="icon" href="shared/favicon.svg" type="image/svg+xml">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Moonbase Mission Control | Cat on Moon</title>
-  <meta name="description" content="A decision-based teaching game: design a relay satellite, a rover and a radio link, fly them on real NASA maps of the Moon and Mars, and learn why missions succeed or fail.">
-  <link rel="stylesheet" href="shared/style.css">
-  <link rel="stylesheet" href="shared/game.css">
-  <link rel="stylesheet" href="shared/shell.css">
-  <link rel="stylesheet" href="shared/hub.css">
+  <title>Cat on Moon | Moonbase Mission Control</title>
+  <meta name="description" content="Every choice has a cost. Our game shows you why. Design a relay satellite, land a rover and send its science home on real NASA maps of the Moon and Mars. Free, in your browser. NASA Space Apps Challenge 2026.">
+  <meta name="theme-color" content="#04060d">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Cat on Moon | Moonbase Mission Control">
+  <meta property="og:description" content="A free space mission design game: orbit, rover and comms on real NASA data. Every choice has a cost. Our game shows you why.">
+  <meta name="twitter:card" content="summary">
   <script type="importmap">
     { "imports": {
       "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
@@ -17,48 +19,212 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap">
-  <link rel="stylesheet" href="shared/cyber.css">
+  <link rel="stylesheet" href="shared/landing.css">
 </head>
 <body>
-  <header id="shell"></header>
-  <main class="hub">
-    <section class="hero">
-      <div id="hero-text" class="hero-text"></div>
-      <div class="hero-visual"><div id="hero-globe" class="hero-globe" aria-label="Rotating globe of the selected world, from NASA mosaics"></div><p id="hero-world" class="hero-world"></p></div>
-    </section>
+  <a class="skip" href="#main">Skip to content</a>
 
-    <section class="panel">
-      <div class="row" style="justify-content:space-between"><h2>Your campaign</h2><span class="score-big" id="camp-score"></span></div>
-      <p class="small muted">Each mission hands its result to the next one. Fly them in order for the full story.</p>
-      <div class="track-row" id="track"></div>
-    </section>
+  <header class="nav">
+    <div class="wrap nav-in">
+      <a class="brand" href="#top" aria-label="Cat on Moon, back to top">
+        <img src="shared/favicon.svg" width="38" height="38" alt="">
+        <span><b>Cat on Moon</b><small>Moonbase Mission Control</small></span>
+      </a>
+      <nav class="links" aria-label="Page sections">
+        <a href="#how">The missions</a>
+        <a href="#learn">What you learn</a>
+        <a href="#worlds">Worlds</a>
+        <a href="#teachers">Teachers</a>
+        <a href="#team">Team</a>
+      </nav>
+      <a class="btn small primary" href="hub.html" data-play>Play now</a>
+    </div>
+  </header>
 
-    <section class="panel">
-      <h2>Choose your world</h2>
-      <p class="small muted">Planet pictures are NASA global mosaics (LRO, Viking, MESSENGER, Dawn) from NASA Solar System Treks.</p>
-      <div class="wgrid" id="worlds"></div>
-    </section>
-
-    <section class="panel">
-      <div class="row" style="justify-content:space-between"><h2>Crew</h2><a href="profile.html" class="small">Profiles and history →</a></div>
-      <div class="row" id="crew"></div>
-      <p class="small muted" id="crew-note"></p>
-      <label class="switch"><input type="checkbox" id="classmode"> <span><b>Class mode</b>: shorter missions with smaller targets, so a whole campaign fits in one lesson.</span></label>
-    </section>
-
-    <section class="panel golden-panel">
-      <figure class="golden"><img src="shared/golden-record.jpg" alt="The Voyager Golden Record and the Voyager spacecraft" loading="lazy" width="981" height="552"></figure>
-      <div class="stack">
-        <h2>Soundtrack: a message to the stars</h2>
-        <p>In 1977 NASA sent the Voyager Golden Record into space with the sounds of Earth. Our game has its own original space score, made live in your browser, and real Apollo 11 radio calls at the big moments.</p>
-        <div class="row"><button class="primary" id="play-music" data-music>Play the soundtrack</button><span class="small muted">Picture: NASA/JPL-Caltech</span></div>
+  <main id="main">
+    <section class="hero" id="top">
+      <div class="wrap hero-in">
+        <div class="hero-copy">
+          <p class="eyebrow">NASA Space Apps Challenge 2026 · Space Mission Design Game</p>
+          <h1>Every choice has a cost.<span>Our game shows you why.</span></h1>
+          <p class="lead">Design a relay satellite. Land a rover. Send its science home. Fly three linked missions on real NASA maps of the Moon and Mars, survive the surprises, then find out exactly why your mission worked, or didn’t.</p>
+          <div class="cta">
+            <a class="btn primary big" href="hub.html" data-play>Play the game</a>
+            <a class="btn big" href="#how">See how it works</a>
+          </div>
+          <ul class="facts" aria-label="Key facts">
+            <li><b>3</b> linked missions</li>
+            <li><b>4</b> worlds</li>
+            <li><b>NASA</b> maps and data</li>
+            <li><b>Free</b> no account</li>
+          </ul>
+        </div>
+        <div class="hero-visual">
+          <div class="globe-stage">
+            <div id="hero-globe" class="hero-globe" role="img" aria-label="A rotating 3D Moon with a satellite orbit, drawn from NASA mosaics"></div>
+            <div class="planet-fallback" id="hero-fallback" aria-hidden="true" hidden></div>
+            <span class="chip c1" aria-hidden="true"><i>Δv</i> 812 m/s</span>
+            <span class="chip c2" aria-hidden="true"><i>CONTACT</i> 52%</span>
+            <span class="chip c3 go" aria-hidden="true"><i>GO</i> Launch mass</span>
+          </div>
+          <p class="caption">Live: an elliptical lunar relay orbit, built with the game’s own orbit maths.</p>
+        </div>
       </div>
     </section>
 
-    <footer class="hubfoot small muted">
-      <p>Team Cat on Moon (Jeongha, David, Emad) · NASA Space Apps Challenge 2026 · “Space Mission Design Game”. Data: NASA LRO LOLA and WAC, Mars Trek (MOLA, HRSC, CTX, Viking), MESSENGER, Dawn; constants from NASA/JPL. Built with three.js. <a href="about.html#credits">All credits</a></p>
-    </footer>
+    <section class="section" id="how">
+      <div class="wrap">
+        <header class="sec-head">
+          <p class="eyebrow">The campaign</p>
+          <h2>Three missions. One story.</h2>
+          <p>Each mission hands its result to the next, so a choice you make in orbit still matters when the rover lands, and when the data has to get home.</p>
+        </header>
+
+        <ol class="missions">
+          <li class="mission">
+            <span class="num">01</span>
+            <h3>Orbit</h3>
+            <p class="what">Place the relay satellite</p>
+            <p>Pick a rocket, an antenna and solar wings. Shape the orbit with real orbital elements, then fly the capture burn. Your orbit decides how often the base can talk to Earth, and a solar storm will test your nerve.</p>
+            <div class="mock" aria-hidden="true">
+              <div class="gng go"><span>GO</span><b>Launch mass</b><em>842 / 1,200 kg</em></div>
+              <div class="gng go"><span>GO</span><b>Power</b><em>400 / 100 W</em></div>
+              <div class="gng warn"><span>WARN</span><b>Contact goal</b><em>46% / 50%</em></div>
+            </div>
+            <p class="handoff">Hands on: <b>relay contact windows</b></p>
+          </li>
+          <li class="mission">
+            <span class="num">02</span>
+            <h3>Rover</h3>
+            <p class="what">Land and dig</p>
+            <p>Choose a landing site on real LRO terrain, build the rover from seven parts, then drive, scan and dig through cold, darkness and the unexpected. On Mars, you core rock samples like Perseverance.</p>
+            <div class="mock" aria-hidden="true">
+              <div class="meter"><label>Battery</label><div class="bar"><i style="width:64%"></i></div><b>64%</b></div>
+              <div class="meter"><label>Water ice</label><div class="bar"><i class="amber" style="width:70%"></i></div><b>8.4 / 12 kg</b></div>
+              <div class="slope"></div>
+            </div>
+            <p class="handoff">Hands on: <b>science data packets</b></p>
+          </li>
+          <li class="mission">
+            <span class="num">03</span>
+            <h3>Comms</h3>
+            <p class="what">Send the science home</p>
+            <p>Order the packets, compress them and add a parity check. Encode bits before the downlink window closes, then decode Earth’s reply. Beat the noise, or the data never arrives.</p>
+            <div class="mock" aria-hidden="true">
+              <div class="bits"><i class="ok">1</i><i class="ok">0</i><i class="ok">1</i><i class="ok">0</i><i class="now">0</i><i>1</i><i>1</i><i>0</i></div>
+              <div class="bar"><i style="width:38%"></i></div>
+            </div>
+            <p class="handoff">Final result: <b>your campaign score</b></p>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="section alt" id="learn">
+      <div class="wrap split">
+        <div>
+          <p class="eyebrow">What you learn</p>
+          <h2>Every part has a price.<br>Every result has a reason.</h2>
+          <p>There is no single perfect answer, just trade-offs. A bigger antenna sends more data but costs mass, power and fuel. A lower orbit is cheaper to reach but harder to talk through. The game makes you feel those trade-offs, then explains them.</p>
+          <ul class="ticks">
+            <li><b>Decide.</b> Choose parts, orbits, landing sites and every move, with live mass, cost and power meters.</li>
+            <li><b>Test.</b> A go / no-go board blocks a launch that is too heavy, over budget, under-powered or too low.</li>
+            <li><b>Survive the surprises.</b> Solar storms, dust, stuck wheels and heater faults ask for a decision under risk.</li>
+            <li><b>Debrief.</b> A score, the reasons behind it and real missions that faced the same problem.</li>
+          </ul>
+        </div>
+        <figure class="debrief" aria-label="Example debrief screen">
+          <figcaption>Example debrief</figcaption>
+          <div class="score"><b>78</b><span>/ 100</span><em class="tag good">Relay online</em></div>
+          <div class="row"><span class="pill good">31/35</span><p><b>Contact with the base</b><small>46% of the time (goal 50%).</small></p></div>
+          <div class="row"><span class="pill good">18/20</span><p><b>Capture burn accuracy</b><small>Apoapsis 1.4% off the plan.</small></p></div>
+          <div class="row"><span class="pill warn">6/10</span><p><b>Budget left</b><small>$24M left.</small></p></div>
+          <h4>Why it went this way</h4>
+          <p class="why">Satellites move slowest at apoapsis (Kepler’s second law). Put it over the base with ω, and raise it, to stay in touch longer.</p>
+        </figure>
+      </div>
+    </section>
+
+    <section class="section" id="worlds">
+      <div class="wrap">
+        <header class="sec-head">
+          <p class="eyebrow">Choose your world</p>
+          <h2>The Moon first. Then Mars, and beyond.</h2>
+          <p>Every planet is drawn from a NASA global mosaic, and the rover flies on real elevation data.</p>
+        </header>
+        <ul class="worlds">
+          <li><div class="planet" data-tex="shared/textures/moon.jpg" role="img" aria-label="The Moon, from the LRO mosaic"></div><span class="tag good">Main campaign</span><h3>Moon</h3><p>Shackleton crater rim, south pole. Water ice hides in craters that never see the Sun.</p></li>
+          <li><div class="planet" data-tex="shared/textures/mars.jpg" role="img" aria-label="Mars, from the Viking mosaic"></div><span class="tag warn">Bonus campaign</span><h3>Mars</h3><p>Jezero crater, an ancient river delta where Perseverance collects samples.</p></li>
+          <li><div class="planet" data-tex="shared/textures/mercury.jpg" role="img" aria-label="Mercury, from the MESSENGER mosaic"></div><span class="tag">Orbit challenge</span><h3>Mercury</h3><p>Closest to the Sun and the hardest to reach: you need a lot of fuel to slow down.</p></li>
+          <li><div class="planet" data-tex="shared/textures/ceres.jpg" role="img" aria-label="Ceres, from the Dawn mosaic"></div><span class="tag">Orbit challenge</span><h3>Ceres</h3><p>A dwarf planet with salty bright spots. Gravity is so weak that orbits are slow and gentle.</p></li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="section alt" id="teachers">
+      <div class="wrap split">
+        <div>
+          <p class="eyebrow">For teachers and clubs</p>
+          <h2>Built to fit in one lesson.</h2>
+          <p>Class mode shortens every mission so a whole campaign runs in about 45 minutes. Up to four students share a crew, each with a role, on one screen.</p>
+          <a class="btn" href="about.html#teachers">Open the Briefing Room</a>
+        </div>
+        <ul class="cards">
+          <li><h3>Lesson plan</h3><p>Learning goals, discussion questions and a printable worksheet.</p></li>
+          <li><h3>Results export</h3><p>Download a CSV of crew scores and decisions.</p></li>
+          <li><h3>Private by design</h3><p>No accounts, no tracking. Profiles stay in the browser.</p></li>
+          <li><h3>Playable by keyboard</h3><p>Colour always comes with words, and motion respects “reduce motion”.</p></li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="section" id="data">
+      <div class="wrap">
+        <header class="sec-head">
+          <p class="eyebrow">Real data, honestly labelled</p>
+          <h2>Built on NASA data.</h2>
+          <p>Where a figure is a simplified game model, the game says so.</p>
+        </header>
+        <ul class="sources" aria-label="Data sources">
+          <li>LRO LOLA slope &amp; elevation</li><li>LRO WAC mosaic</li><li>Mars Trek: MOLA, HRSC, CTX</li><li>Viking colour mosaic</li>
+          <li>MESSENGER MDIS</li><li>Dawn Framing Camera</li><li>NASA/JPL planet constants</li><li>Deep Space Network</li><li>Apollo 11 radio calls</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="section alt" id="team">
+      <div class="wrap split">
+        <div>
+          <p class="eyebrow">The team</p>
+          <h2>Team Cat on Moon, Budapest.</h2>
+          <p>Jeongha, David and Emad built this for the NASA Space Apps Challenge 2026, “Space Mission Design Game”. The idea came from a brainstorm by the three of us, and Mission 3’s signal-encoding game is based on Jeongha’s design.</p>
+          <p class="small">Some code was written with the help of an AI coding assistant, as allowed by the Space Apps rules. The idea, missions and design decisions are the team’s.</p>
+        </div>
+        <div class="crew" aria-hidden="true"><span data-cat="0"></span><span data-cat="1"></span><span data-cat="2"></span></div>
+      </div>
+    </section>
+
+    <section class="final">
+      <div class="wrap">
+        <h2>Ready for launch?</h2>
+        <p>Pick a crew of cats, choose a world and fly your first mission in minutes.</p>
+        <a class="btn primary big" href="hub.html" data-play>Enter Mission Control</a>
+      </div>
+    </section>
   </main>
-  <script type="module" src="shared/hub.js"></script>
+
+  <footer class="foot">
+    <div class="wrap foot-in">
+      <p>Cat on Moon · NASA Space Apps Challenge 2026. Not affiliated with or endorsed by NASA; NASA imagery and data are used under NASA’s media usage guidelines.</p>
+      <nav aria-label="Footer">
+        <a href="hub.html">Play</a>
+        <a href="about.html">Briefing Room</a>
+        <a href="profile.html">Crew profiles</a>
+        <a href="https://github.com/imredavid64-glitch/catonmoon">Source code</a>
+      </nav>
+    </div>
+  </footer>
+
+  <script type="module" src="shared/landing.js"></script>
 </body>
 </html>

@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <link rel="icon" href="shared/favicon.svg" type="image/svg+xml">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Briefing Room | Cat on Moon</title>
   <meta name="description" content="For judges and teachers: how Moonbase Mission Control works, where NASA data is used, how accurate it is, how it was tested, and a ready-to-use 45-minute lesson.">
@@ -16,7 +17,7 @@
 <body>
   <header id="shell"></header>
   <main class="page">
-    <div class="row" style="justify-content:space-between"><h1 style="margin:0">Briefing Room</h1><a href="index.html">← Mission control</a></div>
+    <div class="row" style="justify-content:space-between"><h1 style="margin:0">Briefing Room</h1><a href="hub.html">← Mission control</a></div>
     <nav class="tabs noprint" aria-label="Sections"><a href="#judges" data-t="judges">For judges</a><a href="#teachers" data-t="teachers">For teachers</a><a href="#credits" data-t="credits">Data and credits</a></nav>
 
     <section class="panel qa" data-tab="judges" id="judges">
@@ -55,7 +56,7 @@
 
       <h3>How do we know it works?</h3>
       <ul>
-        <li><b>30 automated tests</b> run on every change: orbit physics against real missions, terrain rules, design limits, the parity code and the hand-offs between missions. A robot player wins all three Moon objectives and the hardest Mars objective with sensible rovers, while badly designed rovers really fail.</li>
+        <li><b>Over 30 automated tests</b> run on every change (GitHub Actions): orbit physics against real missions, terrain rules, design limits, the parity code and the hand-offs between missions. A robot player wins all three Moon objectives and the hardest Mars objective with sensible rovers, while badly designed rovers really fail.</li>
         <li><b>Playtest:</b> a teacher tested an earlier version. His suggestions shaped this one: three connected missions, player profiles, class mode, and clearer feedback.</li>
         <li><b>Data checked twice:</b> the terrain was sampled in two independent ways and matched exactly.</li>
       </ul>
