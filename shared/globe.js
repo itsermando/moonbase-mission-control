@@ -22,7 +22,7 @@ export class Globe {
       this.controls = new OrbitControls(this.camera, this.renderer.domElement);
       this.controls.enableDamping = true; this.controls.enablePan = false; this.controls.minDistance = 1.4; this.controls.maxDistance = 14;
     }
-    this.scene.add(new THREE.AmbientLight(0x8090b0, 0.45));
+    this.scene.add(new THREE.AmbientLight(0x8090b0, 0.75));
     this.sun = new THREE.DirectionalLight(0xfff4e0, 2.6); this.sun.position.set(5, 2, 3); this.scene.add(this.sun);
     if (stars) this.addStars();
     this.planet = new THREE.Mesh(new THREE.SphereGeometry(1, 96, 64), new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 1 }));
@@ -41,6 +41,53 @@ export class Globe {
       this.renderer.render(this.scene, this.camera);
     };
     loop();
+  }
+
+  /** A text label that always faces the camera. */
+  label(text, color = '#00e5ff') {
+    const c = document.createElement('canvas'); c.width = 256; c.height = 64;
+    const g = c.getContext('2d');
+    g.font = '600 34px "Share Tech Mono", monospace'; g.fillStyle = color; g.shadowColor = color; g.shadowBlur = 12;
+    g.fillText(text, 8, 44);
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), depthTest: false, transparent: true }));
+    s.scale.set(0.5, 0.125, 1); return s;
+  }
+
+  /** Mission-planner orbit: a glowing tube, periapsis/apoapsis markers with labels, and the planet's pole axis. */
+  setPlannerOrbit(points, pe, ap, { color = 0x00e5ff } = {}) {
+    if (this.planner) { this.extras.remove(this.planner); this.planner.traverse((o) => { o.geometry?.dispose(); o.material?.dispose?.(); }); }
+    const g = new THREE.Group();
+    const span = Math.max(...points.map((p) => Math.hypot(...p)));
+    const curve = new THREE.CatmullRomCurve3(points.map((p) => new THREE.Vector3(...p)), true);
+    const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, 400, 0.006 * Math.max(1, span / 2), 8, true),
+      new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.95 }));
+    const glow = new THREE.Mesh(new THREE.TubeGeometry(curve, 400, 0.02 * Math.max(1, span / 2), 8, true),
+      new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.18, depthWrite: false }));
+    g.add(tube, glow);
+    const mk = (pos, txt, col) => {
+      const m = new THREE.Mesh(new THREE.SphereGeometry(0.03 * Math.max(1, span / 3), 16, 12), new THREE.MeshBasicMaterial({ color: col }));
+      m.position.set(...pos); g.add(m);
+      const l = this.label(txt, '#' + new THREE.Color(col).getHexString()); l.position.set(pos[0], pos[1] + 0.12 * Math.max(1, span / 3), pos[2]);
+      l.scale.multiplyScalar(Math.max(1, span / 3)); g.add(l);
+    };
+    mk(pe, 'Pe', 0xff2bd6); mk(ap, 'Ap', 0xffd23f);
+    const axis = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, -1.35, 0), new THREE.Vector3(0, 1.35, 0)]),
+      new THREE.LineDashedMaterial({ color: 0x5d6d93, dashSize: 0.05, gapSize: 0.04 }));
+    axis.computeLineDistances(); g.add(axis);
+    this.planner = g; this.extras.add(g);
+    if (!this.sat) this.setOrbit(points.slice(0, 2), color); // creates the satellite and link line
+    if (this.orbit) this.orbit.visible = false;
+  }
+
+  /** A translucent cone over the base: the part of the sky it can see (above 10° elevation). */
+  setSiteCone(latDeg, lonDeg = 0, height = 2) {
+    if (this.cone) this.spin.remove(this.cone);
+    const half = (80 * Math.PI) / 180, r = Math.tan(half) * height * 0.35;
+    const geo = new THREE.ConeGeometry(r, height, 48, 1, true); geo.translate(0, -height / 2, 0); geo.rotateX(Math.PI);
+    const cone = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0x39ff9f, transparent: true, opacity: 0.07, side: THREE.DoubleSide, depthWrite: false }));
+    const pos = latToVec(latDeg, lonDeg, 1); cone.position.copy(pos);
+    cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), pos.clone().normalize());
+    this.cone = cone; this.spin.add(cone);
   }
 
   addStars() {

@@ -30,24 +30,24 @@ export const LIMITS = {
 // Presets based on real orbits (simplified to two-body ellipses)
 export const PRESETS = {
   moon: [
-    { name: 'Low polar orbit', like: 'like NASA LRO', p: { periAltKm: 50, apoAltKm: 50, incDeg: 90, apoOver: 'south' } },
-    { name: 'Elliptical frozen orbit', like: 'inspired by ESA Lunar Pathfinder', p: { periAltKm: 800, apoAltKm: 8000, incDeg: 60, apoOver: 'south' } },
-    { name: 'Halo-style orbit', like: 'like NASA Gateway’s NRHO, simplified', p: { periAltKm: 3000, apoAltKm: 70000, incDeg: 90, apoOver: 'south' } },
+    { name: 'Low polar orbit', like: 'like NASA LRO', p: { periAltKm: 50, apoAltKm: 50, incDeg: 90, argpDeg: 90 } },
+    { name: 'Elliptical frozen orbit', like: 'inspired by ESA Lunar Pathfinder', p: { periAltKm: 800, apoAltKm: 8000, incDeg: 60, argpDeg: 90 } },
+    { name: 'Halo-style orbit', like: 'like NASA Gateway’s NRHO, simplified', p: { periAltKm: 3000, apoAltKm: 70000, incDeg: 90, argpDeg: 90 } },
   ],
   mars: [
-    { name: 'Low polar orbit', like: 'like NASA MRO', p: { periAltKm: 255, apoAltKm: 320, incDeg: 93, apoOver: 'south' } },
-    { name: 'Elliptical orbit', like: 'like NASA MAVEN', p: { periAltKm: 150, apoAltKm: 6200, incDeg: 75, apoOver: 'north' } },
-    { name: 'Areostationary orbit', like: 'Mars’s version of a geostationary orbit', p: { periAltKm: 17030, apoAltKm: 17030, incDeg: 0, apoOver: 'equator' } },
+    { name: 'Low polar orbit', like: 'like NASA MRO', p: { periAltKm: 255, apoAltKm: 320, incDeg: 93, argpDeg: 90 } },
+    { name: 'Elliptical orbit', like: 'like NASA MAVEN', p: { periAltKm: 150, apoAltKm: 6200, incDeg: 75, argpDeg: 270 } },
+    { name: 'Areostationary orbit', like: 'Mars’s version of a geostationary orbit', p: { periAltKm: 17032, apoAltKm: 17032, incDeg: 0, argpDeg: 0 } },
   ],
   mercury: [
-    { name: 'Low polar orbit', like: 'a simple mapping orbit', p: { periAltKm: 200, apoAltKm: 200, incDeg: 90, apoOver: 'north' } },
-    { name: 'Elliptical orbit', like: 'like NASA MESSENGER', p: { periAltKm: 200, apoAltKm: 15200, incDeg: 82.5, apoOver: 'south' } },
-    { name: 'Flipped elliptical orbit', like: 'MESSENGER’s orbit turned over', p: { periAltKm: 500, apoAltKm: 15000, incDeg: 85, apoOver: 'north' } },
+    { name: 'Low polar orbit', like: 'a simple mapping orbit', p: { periAltKm: 200, apoAltKm: 200, incDeg: 90, argpDeg: 270 } },
+    { name: 'Elliptical orbit', like: 'like NASA MESSENGER', p: { periAltKm: 200, apoAltKm: 15200, incDeg: 82.5, argpDeg: 90 } },
+    { name: 'Flipped elliptical orbit', like: 'MESSENGER’s orbit turned over', p: { periAltKm: 500, apoAltKm: 15000, incDeg: 85, argpDeg: 270 } },
   ],
   ceres: [
-    { name: 'Low mapping orbit', like: 'like NASA Dawn’s LAMO', p: { periAltKm: 385, apoAltKm: 385, incDeg: 90, apoOver: 'north' } },
-    { name: 'High mapping orbit', like: 'like NASA Dawn’s HAMO', p: { periAltKm: 1470, apoAltKm: 1470, incDeg: 90, apoOver: 'north' } },
-    { name: 'Elliptical orbit', like: 'a custom design', p: { periAltKm: 400, apoAltKm: 5000, incDeg: 30, apoOver: 'north' } },
+    { name: 'Low mapping orbit', like: 'like NASA Dawn’s LAMO', p: { periAltKm: 385, apoAltKm: 385, incDeg: 90, argpDeg: 270 } },
+    { name: 'High mapping orbit', like: 'like NASA Dawn’s HAMO', p: { periAltKm: 1470, apoAltKm: 1470, incDeg: 90, argpDeg: 270 } },
+    { name: 'Elliptical orbit', like: 'a custom design', p: { periAltKm: 400, apoAltKm: 5000, incDeg: 30, argpDeg: 270 } },
   ],
 };
 

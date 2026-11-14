@@ -46,3 +46,30 @@ test('rocket equation: more delta-v needs more propellant', () => {
   assert.ok(O.propellantKg(200, 1.5) > O.propellantKg(200, 0.8));
   assert.ok(Math.abs(O.propellantKg(100, 0) ) < 1e-9);
 });
+
+test('capture burn: the exact required brake gives the planned apoapsis', () => {
+  const rp = moon.radiusKm + 800, ra = moon.radiusKm + 8000;
+  const dv = O.requiredDv(rp, ra, moon.vInfKms, moon.gm);
+  const res = O.captureResult(rp, moon.vInfKms, dv, moon.gm, moon.radiusKm);
+  assert.ok(!res.escaped && Math.abs(res.apoKm - ra) < 0.01);
+});
+
+test('capture burn: too little brake and you fly past; too much drops the orbit', () => {
+  const rp = moon.radiusKm + 800, ra = moon.radiusKm + 8000;
+  const dv = O.requiredDv(rp, ra, moon.vInfKms, moon.gm);
+  assert.equal(O.captureResult(rp, moon.vInfKms, 0.1, moon.gm, moon.radiusKm).escaped, true);
+  const low = O.captureResult(rp, moon.vInfKms, dv + 0.1, moon.gm, moon.radiusKm);
+  assert.ok(low.apoKm < ra);
+});
+
+test('rocket equation round-trips: fuel for a delta-v gives that delta-v back', () => {
+  const dry = 250, dv = 0.65;
+  assert.ok(Math.abs(O.dvAvailable(dry, O.propellantKg(dry, dv)) - dv) < 1e-9);
+});
+
+test('an areostationary orbit stays over Jezero (planet turns at its sidereal rate)', () => {
+  const el = O.elements({ periAltKm: 17032, apoAltKm: 17032, incDeg: 0, argpDeg: 0 }, mars);
+  const a = O.subPoint(el, mars, 0), b = O.subPoint(el, mars, 24);
+  console.log('areostationary drift over a day', (b.lon - a.lon).toFixed(2), 'deg; period', (el.T / 3600).toFixed(3), 'h');
+  assert.ok(Math.abs(b.lon - a.lon) < 2);
+});

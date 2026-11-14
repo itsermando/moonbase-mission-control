@@ -2,7 +2,7 @@
 
 **Every choice has a cost. Our game shows you why.**
 
-NASA Space Apps Challenge 2026 · Challenge: *Space Mission Design Game* · Team **Cat on Moon**, Budapest
+NASA Space Apps Challenge 2026 · Challenge: *Space Mission Design Game* · Team **Cat on Moon** (Jeongha, David, Emad), Budapest
 
 A decision-based teaching game. Players design and fly a complete space mission in three linked parts, on real NASA maps, and learn from every result:
 
@@ -21,7 +21,7 @@ Every mission has the same six-stage loop (briefing → design → test → depl
 - **3D:** three.js globes for orbit design and a 3D rover view on the real terrain, with a 2D map fallback.
 - **Profiles:** up to 4 crew members per game, with XP, ranks, medals, badges and a history of decisions. Stored only in the browser.
 - **Class mode:** shorter missions so a whole campaign fits in a 45-minute lesson. The Briefing Room has a lesson plan, discussion questions, a printable worksheet and a CSV export of results.
-- **Briefing Room** (`about.html`): answers for judges (audience, challenge fit, NASA data, accuracy, testing, privacy, accessibility, AI use) and teachers.
+- **Briefing Room** (`about.html`): answers for judges (audience, challenge fit, NASA data, accuracy, testing, privacy, accessibility) and teachers.
 
 ## Run it
 No build step. Any static web server works (ES modules don't load from `file://`):
@@ -55,8 +55,8 @@ Open http://localhost:5173. Tests: `npm test` (Node 20+): 30 tests covering orbi
 Sunlight, ice amounts, Earth visibility, Mars heights, noise and costs are simplified game models and are labelled as such in the game.
 
 ## Team and credits
-Team Cat on Moon. Mission 3's signal-encoding game is based on Jeongha's design.
+Team Cat on Moon: **Jeongha, David and Emad**. The idea came from a brainstorm by the three of us; Mission 3's signal-encoding game is based on Jeongha's design.
 Software: three.js r170 (MIT) via jsDelivr. Cat illustrations and sound effects are original (drawn as SVG and generated with Web Audio).
 
 ## Use of AI
-The team chose the idea, the missions and the design decisions. We used an AI coding assistant as a tool to help write and test code to our specification and to draft text. No AI-generated images or audio are used.
+Some code was written with the help of an AI coding assistant, as allowed by the Space Apps rules. The idea, missions and design decisions are the team's.
