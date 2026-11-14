@@ -3,11 +3,9 @@
     box-sizing: border-box;
 }
 
-body {
-    margin: 0;
-    background: #071122;
+/* Scoped to Mission 1 so it sits inside the shared game look (shared/style.css). */
+.mission-1 {
     color: #e2eaf8;
-    font-family: Arial, Helvetica, sans-serif;
 }
 
 .mission-1 {
@@ -16,14 +14,14 @@ body {
     padding: 30px 24px;
 }
 
-h1 {
+.mission-1 h1 {
     font-size: 15px;
     letter-spacing: 2px;
     color: #5abce9;
     margin: 0 0 28px;
 }
 
-h2 {
+.mission-1 h2 {
     font-size: 26px;
     margin: 0 0 18px;
 }
@@ -77,8 +75,8 @@ h2 {
     color: #9db3cc;
 }
 
-.primary,
-.secondary {
+.mission-1 .primary,
+.mission-1 .secondary {
     border-radius: 12px;
     padding: 17px 30px;
     font-size: 17px;
@@ -86,13 +84,13 @@ h2 {
     cursor: pointer;
 }
 
-.primary {
+.mission-1 .primary {
     background: #1bb4e8;
     color: #061728;
     border: 0;
 }
 
-.secondary {
+.mission-1 .secondary {
     background: transparent;
     color: #f5f8ff;
     border: 2px solid #64b9fa;

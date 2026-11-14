@@ -320,6 +320,19 @@ function endEncodingGame(success, reason = "") {
                 }
             })
         );
+    } else {
+
+        // Let the hub record the failed attempt too
+        window.dispatchEvent(
+            new CustomEvent("encodingFailed", {
+                detail: {
+                    camera: selectedCamera,
+                    packetsCompleted: currentPacket,
+                    mistakes: mistakes,
+                    reason: reason
+                }
+            })
+        );
     }
 }
 
@@ -351,6 +364,10 @@ $("restart-encoding").addEventListener(
 );
 
 
+
+/* =========================================
+   11. KEYBOARD INPUT
+========================================= */
 
 document.addEventListener("keydown", e => {
 

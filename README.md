@@ -15,7 +15,7 @@ A rule-based guide called **CAPCOM** explains *why* each choice matters, with a 
 
 | Mission | Owner | Status |
 |---|---|---|
-| 1. Earth-space link | [name] | in development |
+| 1. Earth-space link ("Signal Encoding") | Jeongha | playable |
 | 2. Excavation and rover ("Operation Regolith") | [name] | playable |
 | 3. Orbits and satellites | [name] | in development |
 
@@ -28,6 +28,10 @@ python -m http.server 5173
 ```
 
 Then open http://localhost:5173. Tests: `npm test` (Node 20+).
+
+## Mission 1: Earth-space link
+
+Choose an instrument (temperature sensor, standard camera or HD camera), then encode its data into binary before the downlink window closes: press `O` for 0 and `X` for 1. Each packet makes the clock run faster; a wrong bit costs 3 seconds and 5 errors end the transmission. Files: `missions/comms/` (`connection.js` game logic, `style.css`, `result.js` saves the score to the hub).
 
 ## Mission 2: Operation Regolith
 
