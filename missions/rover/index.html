@@ -3,10 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Operation Regolith | Space Mission Design Game</title>
-  <meta name="description" content="Design a lunar rover, land it on the real Shackleton crater rim and survive 14 days digging for ice.">
+  <title>Mission 2: Rover | Cat on Moon</title>
+  <meta name="description" content="Design a rover, land on the real Shackleton crater rim (or Jezero crater on Mars) and survive while you dig for ice or core rock samples.">
   <link rel="stylesheet" href="../../shared/style.css">
   <link rel="stylesheet" href="../../shared/game.css">
+  <link rel="stylesheet" href="../../shared/shell.css">
   <script type="importmap">
     { "imports": {
       "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
@@ -15,11 +16,8 @@
   </script>
 </head>
 <body>
-  <header class="topbar">
-    <a class="back" href="../../index.html">&larr; Mission control</a>
-    <span class="brand">Operation Regolith</span>
-    <nav class="stages" id="stages" aria-label="Mission stages"></nav>
-  </header>
+  <header id="shell"></header>
+  <nav class="stagebar stages" id="stages" aria-label="Mission stages"></nav>
   <main class="layout">
     <div id="main"></div>
     <aside id="side" class="stack"></aside>

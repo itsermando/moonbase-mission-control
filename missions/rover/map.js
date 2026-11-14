@@ -1,14 +1,15 @@
-// Draws the Shackleton rim map on a canvas: NASA hillshade or slope picture plus game overlays.
-import { N, cells, sunAt } from './world.js';
+// Draws the rover map on a canvas: a NASA picture of the terrain plus game overlays (Moon or Mars).
+import { N, cells, sunAt, WORLD_ID } from './world.js';
 
 const SIZE = 960; // canvas pixels (drawn at 2x for sharp screens)
 const CELL = SIZE / N;
 const imgs = {};
-for (const name of ['hillshade', 'slope']) {
+for (const name of ['hillshade', 'slope', 'mars-hillshade']) {
   const im = new Image();
   im.src = new URL(`./assets/${name}.png`, import.meta.url).href;
   imgs[name] = im;
 }
+const SLOPE_COLORS = ['rgba(70,194,138,.35)', 'rgba(242,193,78,.35)', 'rgba(242,140,60,.45)', 'rgba(255,90,90,.55)'];
 
 export function setupCanvas(canvas, onRedraw) {
   canvas.width = SIZE; canvas.height = SIZE;
@@ -27,9 +28,12 @@ const center = (c) => [(c.i + 0.5) * CELL, (c.j + 0.5) * CELL];
 
 function base(ctx, view) {
   ctx.fillStyle = '#05070c'; ctx.fillRect(0, 0, SIZE, SIZE);
-  const im = view === 'slope' ? imgs.slope : imgs.hillshade;
+  const mars = WORLD_ID === 'mars';
+  const im = mars ? imgs['mars-hillshade'] : view === 'slope' ? imgs.slope : imgs.hillshade;
   if (im.complete && im.naturalWidth) ctx.drawImage(im, 0, 0, SIZE, SIZE);
   else for (const c of cells) { const g = c.elev; ctx.fillStyle = `rgb(${g},${g},${g})`; ctx.fillRect(c.i * CELL, c.j * CELL, CELL, CELL); }
+  if (mars) { ctx.fillStyle = 'rgba(190,95,45,.38)'; ctx.fillRect(0, 0, SIZE, SIZE); } // Mars is rust-coloured
+  if (mars && view === 'slope') for (const c of cells) { ctx.fillStyle = SLOPE_COLORS[c.slope]; ctx.fillRect(c.i * CELL, c.j * CELL, CELL, CELL); }
 }
 
 function shadeCells(ctx, view, t) {
@@ -39,14 +43,22 @@ function shadeCells(ctx, view, t) {
       const s = sunAt(c, t);
       ctx.fillStyle = s === 0 ? 'rgba(10,20,60,.75)' : `rgba(255,200,60,${0.08 + s * 0.4})`;
       ctx.fillRect(x, y, CELL, CELL);
-    } else if (c.kind === 'floor' || c.kind === 'wall') {
+    } else if (WORLD_ID === 'moon' && (c.kind === 'floor' || c.kind === 'wall')) {
       ctx.fillStyle = 'rgba(20,40,110,.38)'; ctx.fillRect(x, y, CELL, CELL);
     }
   }
 }
 
 function traps(ctx) {
-  ctx.strokeStyle = 'rgba(127,220,255,.9)'; ctx.lineWidth = 2;
+  ctx.lineWidth = 2;
+  if (WORLD_ID === 'mars') {
+    for (const c of cells) {
+      if (c.kind === 'delta') { ctx.strokeStyle = 'rgba(127,220,255,.85)'; ctx.strokeRect(c.i * CELL + 2, c.j * CELL + 2, CELL - 4, CELL - 4); }
+      if (c.kind === 'rim' && (c.i + c.j) % 3 === 0) { ctx.fillStyle = 'rgba(255,209,102,.55)'; ctx.fillRect(c.i * CELL + CELL / 2 - 2, c.j * CELL + CELL / 2 - 2, 4, 4); }
+    }
+    return;
+  }
+  ctx.strokeStyle = 'rgba(127,220,255,.9)';
   for (const c of cells) if (c.kind === 'trap') ctx.strokeRect(c.i * CELL + 2, c.j * CELL + 2, CELL - 4, CELL - 4);
 }
 
@@ -83,6 +95,11 @@ export function draw(canvas, opts) {
     }
   }
   if (run) {
+    for (const k of run.sampled || []) {
+      const [x, y] = center(cells[k]);
+      ctx.fillStyle = '#fff'; ctx.strokeStyle = '#05070c'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(x, y, CELL * 0.28, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    }
     for (const k of run.scanned) {
       const c = cells[k], a = Math.min(0.85, c.ice / 6);
       ctx.fillStyle = `rgba(127,220,255,${a})`; ctx.fillRect(c.i * CELL + 1, c.j * CELL + 1, CELL - 2, CELL - 2);

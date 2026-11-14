@@ -1,15 +1,19 @@
-// The Shackleton rim world: terrain from NASA LOLA data plus simple, documented models
-// for sunlight, cold traps, ice and Earth visibility.
+// Rover worlds: the Moon (Shackleton rim, real NASA LOLA terrain) and Mars (Jezero crater, approximate
+// heights from NASA Mars Trek). Each world brings its own sunlight, ice/sample and Earth-contact models.
 import { TERRAIN } from './data/terrain.js';
+import { TERRAIN_MARS } from './data/terrain-mars.js';
 
-export const N = TERRAIN.n;
-export const CELL_M = TERRAIN.meta.cell_m; // about 333 m
-export const SLOPE_TEXT = ['under 10°', '10-15°', '15-20°', 'over 20°'];
+// Live bindings: useWorld() swaps these and every importer sees the new values.
+export let WORLD_ID = 'moon';
+export let N = TERRAIN.n;
+export let CELL_M = TERRAIN.meta.cell_m;
+export let SLOPE_TEXT = ['under 10°', '10-15°', '15-20°', 'over 20°'];
+export let cells = [];
+export let SOURCE_NOTE = '';
+let relay = { periodH: 12, windowH: 4 };
+let elev = [];
 
-const slope = Array.from(TERRAIN.slope, Number);
-const elev = TERRAIN.elev;
-
-// Seeded random numbers so every player gets the same hidden ice map.
+// Seeded random numbers so every player gets the same hidden ice/sample map.
 function rng(seed) {
   let s = seed >>> 0;
   return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
@@ -22,45 +26,90 @@ function localMean(i, j, r) {
   return s / n;
 }
 
-/** Per-cell model. kind: 'floor' | 'wall' | 'trap' | 'plain'. */
-export const cells = (() => {
-  const rand = rng(73);
-  const out = [];
-  for (let j = 0; j < N; j++) {
-    for (let i = 0; i < N; i++) {
-      const k = j * N + i, e = elev[k], s = slope[k];
-      let kind = 'plain';
-      if (e < 110) kind = s <= 1 ? 'floor' : 'wall';                 // inside Shackleton: never sunlit
-      else if (s <= 1 && e < localMean(i, j, 3) - 3) kind = 'trap';  // small low spot on the plateau
-      // Sunlight: higher ground sees the low polar Sun more often (the rim peaks are lit ~90% of the time).
-      let sun = Math.min(0.95, Math.max(0.3, 0.3 + (e - 110) / 130 * 0.65));
-      if (kind === 'floor' || kind === 'wall') sun = 0;
-      if (kind === 'trap') sun = 0.05;
-      // Ice by weight. LCROSS measured about 5.6% in Cabeus crater; cold traps hold less and vary.
-      let ice = 0.1 + rand() * 0.2;
-      if (kind === 'floor') ice = 4 + rand() * 3;
-      if (kind === 'wall') ice = 1 + rand() * 2;
-      if (kind === 'trap') ice = 0.3 + rand() * 2.2;
-      out.push({ i, j, k, slope: s, elev: e, kind, sun, ice });
-    }
+function moonCells() {
+  const rand = rng(73), slope = Array.from(TERRAIN.slope, Number), out = [];
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+    const k = j * N + i, e = elev[k], s = slope[k];
+    let kind = 'plain';
+    if (e < 110) kind = s <= 1 ? 'floor' : 'wall';                 // inside Shackleton: never sunlit
+    else if (s <= 1 && e < localMean(i, j, 3) - 3) kind = 'trap';  // small low spot on the plateau
+    // Sunlight: higher ground sees the low polar Sun more often (rim peaks are lit ~80-90% of the time).
+    let sun = Math.min(0.95, Math.max(0.3, 0.3 + (e - 110) / 130 * 0.65));
+    if (kind === 'floor' || kind === 'wall') sun = 0;
+    if (kind === 'trap') sun = 0.05;
+    // Ice by weight. LCROSS measured about 5.6% in Cabeus crater; cold traps hold less and vary.
+    let ice = 0.1 + rand() * 0.2;
+    if (kind === 'floor') ice = 4 + rand() * 3;
+    if (kind === 'wall') ice = 1 + rand() * 2;
+    if (kind === 'trap') ice = 0.3 + rand() * 2.2;
+    out.push({ i, j, k, slope: s, elev: e, kind, sun, ice, sample: 0 });
   }
   return out;
-})();
+}
 
+// Jezero: the western river delta (where Perseverance sampled clays and carbonates), the crater rim and floor.
+const MARS_SAMPLE = { delta: 30, rim: 20, floor: 15, plain: 8 };
+function marsCells() {
+  const T = TERRAIN_MARS, [lon0, lat0, lon1, lat1] = T.meta.box_deg, slope = Array.from(T.slope, Number), out = [];
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+    const k = j * N + i, e = elev[k];
+    const lon = lon0 + ((i + 0.5) / N) * (lon1 - lon0), lat = lat1 - ((j + 0.5) / N) * (lat1 - lat0);
+    let kind = 'plain';
+    if (lon > 77.33 && lon < 77.47 && lat > 18.42 && lat < 18.57 && e > 25 && e < 140) kind = 'delta';
+    else if (e > 190) kind = 'rim';
+    else if (e < 35) kind = 'floor';
+    out.push({ i, j, k, slope: slope[k], elev: e, kind, sun: 1, ice: 0, sample: MARS_SAMPLE[kind] });
+  }
+  return out;
+}
+
+export const KIND_TEXT = {
+  moon: { trap: 'Cold trap', floor: 'Crater floor, never lit', wall: 'Crater wall', plain: 'Plain' },
+  mars: { delta: 'River delta', rim: 'Crater rim', floor: 'Crater floor', plain: 'Plain' },
+};
+
+/** Switch the active world. relaySchedule comes from the orbit mission (or a default). */
+export function useWorld(id = 'moon', relaySchedule) {
+  WORLD_ID = id === 'mars' ? 'mars' : 'moon';
+  const T = WORLD_ID === 'mars' ? TERRAIN_MARS : TERRAIN;
+  N = T.n; CELL_M = T.meta.cell_m; elev = T.elev;
+  if (relaySchedule) relay = { periodH: Math.max(0.5, relaySchedule.periodH), windowH: Math.max(0, Math.min(relaySchedule.windowH, relaySchedule.periodH)) };
+  if (WORLD_ID === 'mars') {
+    SLOPE_TEXT = ['gentle', 'moderate', 'steep', 'very steep'];
+    cells = marsCells();
+    SOURCE_NOTE = 'Terrain: Jezero crater from NASA Mars Trek (MGS MOLA + Mars Express HRSC). Heights are approximate, read from a colour map. Day/night, dust and Earth contact are simplified game models.';
+  } else {
+    SLOPE_TEXT = ['under 10°', '10-15°', '15-20°', 'over 20°'];
+    cells = moonCells();
+    SOURCE_NOTE = 'Terrain: NASA LRO LOLA slope and elevation, Shackleton crater rim, from NASA Moon Trek. Sunlight, ice amounts and Earth visibility are simplified game models based on that terrain.';
+  }
+  return cells;
+}
+useWorld('moon');
+
+export const terrainData = () => (WORLD_ID === 'mars' ? TERRAIN_MARS : TERRAIN);
+export const relayInfo = () => ({ ...relay });
 export const cellAt = (i, j) => (i < 0 || j < 0 || i >= N || j >= N ? null : cells[j * N + i]);
 
-/** Sunlight 0..1 at hour t. The Sun circles the horizon, so light rises and falls slowly. */
+/** Sunlight 0..1 at hour t. */
 export function sunAt(c, t) {
+  if (WORLD_ID === 'mars') {
+    // a Mars day (sol) lasts 24.66 h; sunlight there is about 43% as strong as at the Moon. The mission lands at sunrise.
+    return 0.45 * Math.max(0, Math.sin((2 * Math.PI * (t + 3)) / 24.66));
+  }
   if (c.sun === 0) return 0;
+  // The polar Sun circles the horizon, so light rises and falls slowly.
   const swing = 0.85 + 0.15 * Math.sin((2 * Math.PI * t) / 168 + c.i / 9);
   return Math.min(1, c.sun * swing);
 }
 
 /** Can the rover talk to Earth from this cell at hour t? */
 export function commsAt(c, t, comm) {
-  const dte = !!comm.dte && c.elev >= 150;      // Earth is low on the horizon: you need high ground
-  const relay = !!comm.relay && t % 12 < 4;       // relay satellite overhead 4 h of every 12
-  return { ok: dte || relay, dte, relay };
+  const dte = WORLD_ID === 'mars'
+    ? !!comm.dte && (t % 24.66) < 12   // Earth is above the horizon about half of each sol
+    : !!comm.dte && c.elev >= 150;                                      // Earth is low at the lunar pole: you need high ground
+  const relayOk = !!comm.relay && t % relay.periodH < relay.windowH;   // windows from the Mission 1 orbit
+  return { ok: dte || relayOk, dte, relay: relayOk };
 }
 
 /** Can this rover enter a cell? */
@@ -127,7 +176,3 @@ export function nearestReachable(from, kinds, rover) {
   }
   return null;
 }
-
-export const SOURCE_NOTE =
-  'Terrain: NASA LRO LOLA slope and elevation, Shackleton crater rim, from NASA Moon Trek. ' +
-  'Sunlight, ice amounts and Earth visibility are simplified game models based on that terrain.';

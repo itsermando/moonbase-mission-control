@@ -1,6 +1,7 @@
-// Deploy: survive and dig on the Moon, in 3D (three.js) with a 2D fallback.
-import { LIMITS } from './parts.js';
-import { cells, cellAt, sunAt, SLOPE_TEXT } from './world.js';
+// Deploy: survive and dig on the Moon or Mars, in 3D (three.js) with a 2D fallback.
+import { cells, cellAt, sunAt, SLOPE_TEXT, WORLD_ID, KIND_TEXT } from './world.js';
+import { isClassMode } from '../../shared/campaign.js';
+import { coachOnce } from '../../shared/shell.js';
 import * as E from './engine.js';
 import { hint } from './capcom.js';
 import { setupCanvas, draw, cellFromEvent } from './map.js';
@@ -12,7 +13,7 @@ const $ = (sel) => document.querySelector(sel);
 let ui = null; // { scene, map, busy, hoverK, hoverPlan, keyHandler, logLen }
 
 export function startDeploy() {
-  S.run = E.newRun({ design: { ...S.design }, objectiveId: S.objectiveId, siteK: S.siteK, testsRun: S.testsRun, seed: Date.now() % 100000 });
+  S.run = E.newRun({ design: { ...S.design }, objectiveId: S.objectiveId, siteK: S.siteK, testsRun: S.testsRun, seed: Date.now() % 100000, classMode: isClassMode() });
   S.plan = null; S.event = null; S.eventMsg = null; S.landed = false;
 }
 
@@ -23,7 +24,7 @@ export function leaveDeploy() {
   ui = null;
 }
 
-const KIND = { trap: 'Cold trap', floor: 'Crater floor, never lit', wall: 'Crater wall', plain: 'Plain' };
+const kindText = (c) => KIND_TEXT[WORLD_ID][c.kind];
 
 function overlay() {
   const r = S.run;
@@ -35,16 +36,17 @@ function overlay() {
 function hudHtml(view) {
   const r = S.run, o = r.objective, c = cells[r.k];
   const t = view?.t ?? r.t, b = view?.b ?? r.batteryWh / r.rover.batteryWh;
-  const got = o.metric === 'water' ? r.cargo.water : r.cargo.regolith;
-  const left = LIMITS.missionHours - t, sun = sunAt(c, t), link = E.link(r);
+  const mars = WORLD_ID === 'mars', days = Math.round(r.limits.missionHours / 24);
+  const got = o.metric === 'samples' ? r.samples.length : o.metric === 'water' ? r.cargo.water : r.cargo.regolith;
+  const left = r.limits.missionHours - t, sun = sunAt(c, t), link = E.link(r);
   const pct = Math.max(0, Math.round(b * 100));
-  return `<div class="hud-row"><span class="chip ${left < 48 ? 'urgent' : ''}">Day ${Math.min(14, Math.floor(t / 24) + 1)}/14 · ${Math.max(0, Math.round(left))} h to night</span>
-      <span class="chip ${sun > 0.2 ? 'sun' : 'dark'}">${sun > 0.2 ? `Sun ${Math.round(sun * 100)}%` : 'In shadow'}</span>
+  return `<div class="hud-row"><span class="chip ${left < 48 ? 'urgent' : ''}">Day ${Math.min(days, Math.floor(t / 24) + 1)}/${days} · ${Math.max(0, Math.round(left))} h left</span>
+      <span class="chip ${sun > 0.1 ? 'sun' : 'dark'}">${sun > 0.1 ? `Sun ${Math.round(sun * 100)}%` : mars ? 'Night' : 'In shadow'}</span>
       <span class="chip ${link.ok ? 'ok' : 'off'}">${link.ok ? (link.dte ? 'Earth link' : 'Relay link') : 'No link'}</span></div>
     <div class="gauge"><span>Battery</span><div class="bar"><i class="${pct < 20 ? 'bad' : pct < 40 ? 'warn' : ''}" style="width:${pct}%"></i></div><b>${pct}%</b></div>
-    <div class="gauge"><span>${o.metric === 'water' ? 'Water' : 'Regolith'}</span><div class="bar"><i class="goal" style="width:${Math.min(100, (got / o.target) * 100)}%"></i></div><b>${got.toFixed(o.metric === 'water' ? 1 : 0)}/${o.target}</b></div>
-    ${r.shadowH > 0 ? `<div class="chip dark">Cold: ${r.shadowH.toFixed(1)} h in shadow without heat</div>` : ''}
-    <div class="small muted">${KIND[c.kind]} · ${SLOPE_TEXT[c.slope]}${r.scanned.has(c.k) ? ` · ice ${c.ice.toFixed(1)}%` : ''}</div>`;
+    <div class="gauge"><span>${o.metric === 'samples' ? 'Samples' : o.metric === 'water' ? 'Water' : 'Regolith'}</span><div class="bar"><i class="goal" style="width:${Math.round(E.progressOf(r) * 100)}%"></i></div><b>${o.metric === 'water' ? got.toFixed(1) : Math.round(got)}/${o.target}</b></div>
+    ${r.shadowH > 0 ? `<div class="chip dark">Cold: ${r.shadowH.toFixed(1)} h without heat</div>` : ''}
+    <div class="small muted">${kindText(c)} · ${SLOPE_TEXT[c.slope]}${r.scanned.has(c.k) && !mars ? ` · ice ${c.ice.toFixed(1)}%` : ''}${mars && r.sampled.has(c.k) ? ' · sampled' : ''}</div>`;
 }
 
 function updateHud(view) {
@@ -55,9 +57,14 @@ function updateHud(view) {
     ? `Route: <b>${plan.path.length - 1}</b> cells · <b>${plan.hours.toFixed(1)} h</b> · <b>${(plan.wh / 1000).toFixed(2)} kWh</b> of ${(r.batteryWh / 1000).toFixed(2)} available ${plan.wh > r.batteryWh ? '<span class="tag bad">not enough battery</span>' : ''}`
     : 'Click the ground to plan a route, or drive one square with <span class="kbd">W A S D</span>.';
   $('#a-drive').disabled = !plan || ui.busy;
-  for (const id of ['a-dig2', 'a-dig6', 'a-rest', 'a-end']) $('#' + id).disabled = ui.busy || r.ended;
+  const low = r.batteryWh < 0.12 * r.rover.batteryWh;
+  for (const id of ['a-rest', 'a-end']) $('#' + id).disabled = ui.busy || r.ended;
+  for (const id of ['a-dig2', 'a-dig6', 'a-digauto']) { const b = $('#' + id); b.disabled = ui.busy || r.ended || low; b.title = low ? 'Battery under 12%: recharge first' : ''; }
   $('#a-scan').disabled = ui.busy || !r.rover.sci.scan;
-  $('#a-dig2').innerHTML = `Dig 2 h <small>${Math.round(E.digRate(r) * 2)} kg</small> <span class="kbd">Space</span>`;
+  $('#a-dig2').innerHTML = WORLD_ID === 'mars' ? 'Drill a core (2 h) <span class="kbd">Space</span>' : `Dig 2 h <small>${Math.round(E.digRate(r) * 2)} kg</small> <span class="kbd">Space</span>`;
+  const last = r.log[0];
+  $('#lastline').className = `lastline ${last?.kind || ''}`;
+  $('#lastline').textContent = last ? `Hour ${last.t}: ${last.text}` : 'Mission start. Plan your first move.';
   $('#side').innerHTML = ui.capcom(hint('deploy', { state: r }));
   $('#log').innerHTML = r.log.slice(0, 30).map((l) => `<div class="${l.kind}"><span class="mono muted">${l.t} h</span> ${l.text}</div>`).join('');
   if (ui.scene) { ui.scene.setSunTime(r.t); ui.scene.setDark(sunAt(cells[r.k], r.t) < 0.2); }
@@ -101,6 +108,13 @@ async function act(kind, arg) {
       overlay();
       await ui.scene.driveAlong(track.map((p) => cells[p.k]), (n) => { const p = track[n]; updateHud({ t: p.t, b: p.b }); });
     }
+  } else if (kind === 'digauto') {
+    // keep digging in 2-hour blocks until the battery reaches 30%, the goal is met, or something happens
+    sfx.dig();
+    for (let n = 0; n < 12 && !ev && !r.ended && E.progressOf(r) < 1 && r.batteryWh > 0.3 * r.rover.batteryWh; n++) {
+      ev = E.dig(r, 2); updateHud();
+      if (ui.scene) { ui.scene.dig(0.6); await sleep(320); }
+    }
   } else if (kind === 'dig') {
     ev = E.dig(r, arg); sfx.dig();
     if (ui.scene) { ui.scene.dig(1.8); await sleep(1400); }
@@ -135,8 +149,9 @@ function onHover(k, ev) {
     overlay();
   }
   const p = ui.hoverPlan;
-  tip.innerHTML = `<b>${KIND[c.kind]}</b><br>Slope ${SLOPE_TEXT[c.slope]} · Sun ${Math.round(sunAt(c, r.t) * 100)}%
-    ${r.scanned.has(k) ? `<br>Ice: <b>${c.ice.toFixed(1)}%</b>` : c.kind !== 'plain' ? '<br>Ice: unknown, scan to find out' : ''}
+  tip.innerHTML = `<b>${kindText(c)}</b><br>Slope ${SLOPE_TEXT[c.slope]} · Sun ${Math.round(sunAt(c, r.t) * 100)}%
+    ${WORLD_ID === 'mars' ? `<br>Sample value: <b>${c.sample}</b>${r.sampled.has(k) ? ' (already sampled)' : ''}`
+      : r.scanned.has(k) ? `<br>Ice: <b>${c.ice.toFixed(1)}%</b>` : c.kind !== 'plain' ? '<br>Ice: unknown, scan to find out' : ''}
     <br>${k === r.k ? 'Rover is here' : p ? `${p.hours.toFixed(1)} h · ${(p.wh / 1000).toFixed(2)} kWh ${p.tooFar ? '<span class="neg">too far for the battery</span>' : ''}` : '<span class="neg">No safe route</span>'}`;
   const vp = $('#vp').getBoundingClientRect();
   tip.style.left = `${Math.min(vp.width - 240, ev.clientX - vp.left + 16)}px`;
@@ -196,10 +211,10 @@ export async function renderDeploy(capcomPanel) {
       <div id="ev"></div>
     </div>
     <div class="actionbar">
-      <p class="small" id="plan"></p>
+      <p class="small" id="plan"></p><p class="lastline" id="lastline" aria-live="polite"></p>
       <div class="row">
         <button class="primary" id="a-drive">Drive <span class="kbd">Enter</span></button>
-        <button id="a-dig2"></button><button id="a-dig6">Dig 6 h</button>
+        <button id="a-dig2"></button><button id="a-dig6">${WORLD_ID === 'mars' ? 'Drill 6 h' : 'Dig 6 h'}</button><button id="a-digauto" title="Dig in 2-hour blocks until the battery is at 30%">Auto-dig to 30%</button>
         <button id="a-scan" title="${S.run.rover.sci.scan ? 'Reveal buried ice nearby (1 h)' : 'Needs the neutron spectrometer'}">Scan <span class="kbd">F</span></button>
         <button id="a-rest">Rest 4 h <span class="kbd">R</span></button>
         <button id="a-end">End mission</button>
@@ -239,9 +254,14 @@ export async function renderDeploy(capcomPanel) {
     if (id === 'a-drive') act('drive');
     else if (id === 'a-dig2') act('dig', 2);
     else if (id === 'a-dig6') act('dig', 6);
+    else if (id === 'a-digauto') act('digauto');
     else if (id === 'a-scan') act('scan');
     else if (id === 'a-rest') act('rest', 4);
-    else if (id === 'a-end') { E.finish(S.run); finishRun(); }
+    else if (id === 'a-end') {
+      const hoursLeft = Math.round(S.run.limits.missionHours - S.run.t);
+      if (hoursLeft > 6 && !window.confirm(`End the mission now? You still have ${hoursLeft} hours left. Your score will be counted as it is.`)) return;
+      E.finish(S.run); finishRun();
+    }
     else if (id === 'v-2d') setFlat(true);
     else if (id === 'v-3d' && ui.scene) setFlat(false);
     else if (id === 'v-chase' && ui.scene) ui.scene.chase();
@@ -287,5 +307,7 @@ async function landing() {
   ui.scene.setRover(S.run.design, S.run.siteK);
   setTimeout(() => { if (ui) banner.innerHTML = ''; }, 2200);
   ui.busy = false; updateHud();
-  toast('Tip: hover the ground to see the route and its cost. Click twice to drive.', 'info', 7000);
+  coachOnce('rover-deploy', ['Hover the ground to see the route and what it costs in hours and battery. Click once to plan, twice to drive.',
+    'Use W A S D to drive one square at a time. Space digs, F scans, R rests.',
+    'Watch the battery and the link chips. If something goes wrong while there is no link to Earth, the rover must decide alone.']);
 }

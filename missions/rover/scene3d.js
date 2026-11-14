@@ -2,19 +2,24 @@
 // The 2D game map is draped over the terrain as a texture, so every overlay shows in 3D.
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { TERRAIN } from './data/terrain.js';
+import { terrainData, WORLD_ID } from './world.js';
 import { buildRover, buildLander, animateRover } from './rover-model.js';
 
-const N = TERRAIN.n;
+let T = terrainData(), N = T.n;
 // Grey level 0-255 spans roughly the 4.2 km from crater floor to rim; one cell is 333 m.
-const HEIGHT = 4200 / 333 / 255;
+// Moon: grey 0-255 spans ~4.2 km over 333 m squares. Mars: ~700 m over 739 m squares, shown 4x taller so you can see it.
+let HEIGHT = 4200 / 333 / 255;
+function configure() {
+  T = terrainData(); N = T.n;
+  HEIGHT = WORLD_ID === 'mars' ? ((T.meta.relief_m / T.meta.cell_m) / 255) * 4 : 4200 / 333 / 255;
+}
 const ROVER_SCALE = 0.55; // shown much bigger than real so you can see it
 
 function elevAt(fx, fz) {
   // bilinear sample in cell units, (0,0) = centre of the top-left cell
   const x = Math.max(0, Math.min(N - 1.001, fx)), z = Math.max(0, Math.min(N - 1.001, fz));
   const i = Math.floor(x), j = Math.floor(z), u = x - i, v = z - j;
-  const e = (a, b) => TERRAIN.elev[b * N + a];
+  const e = (a, b) => T.elev[b * N + a];
   return (e(i, j) * (1 - u) * (1 - v) + e(i + 1, j) * u * (1 - v) + e(i, j + 1) * (1 - u) * v + e(i + 1, j + 1) * u * v) * HEIGHT;
 }
 /** world position of a (fractional) cell coordinate */
@@ -22,6 +27,8 @@ export function cellToWorld(ci, cj) { return new THREE.Vector3(ci - N / 2 + 0.5,
 
 export class MoonScene {
   constructor(container, overlayCanvas) {
+    configure();
+    this.mars = WORLD_ID === 'mars';
     this.el = container;
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
@@ -31,7 +38,8 @@ export class MoonScene {
     container.appendChild(this.renderer.domElement);
 
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x020308);
+    this.scene.background = new THREE.Color(this.mars ? 0x24140e : 0x020308);
+    if (this.mars) this.scene.fog = new THREE.Fog(0x8a5a40, 60, 220); // dusty Martian air
     this.camera = new THREE.PerspectiveCamera(45, 1, 0.1, 2000);
     this.camera.position.set(-30, 34, 40);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
@@ -70,6 +78,7 @@ export class MoonScene {
     const earth = new THREE.Mesh(new THREE.SphereGeometry(9, 32, 16), new THREE.MeshBasicMaterial({ color: 0x3d7bd9 }));
     const cloud = new THREE.Mesh(new THREE.SphereGeometry(9.2, 32, 16), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.25 }));
     earth.add(cloud); earth.position.set(-220, 18, -320); this.scene.add(earth); this.earth = earth;
+    if (this.mars) earth.visible = false; // from Mars, Earth is just a bright dot
   }
 
   addLights() {
@@ -102,7 +111,7 @@ export class MoonScene {
     geo.computeVertexNormals();
     this.texture = new THREE.CanvasTexture(overlayCanvas);
     this.texture.colorSpace = THREE.SRGBColorSpace; this.texture.anisotropy = 8;
-    const m = new THREE.MeshStandardMaterial({ map: this.texture, roughness: 0.95, metalness: 0 });
+    const m = new THREE.MeshStandardMaterial({ map: this.texture, roughness: 0.95, metalness: 0, color: this.mars ? 0xe8a47a : 0xffffff });
     this.terrain = new THREE.Mesh(geo, m); this.terrain.receiveShadow = true; this.terrain.castShadow = true;
     this.scene.add(this.terrain);
     // a dark skirt so the map edge doesn't look paper-thin
@@ -118,7 +127,7 @@ export class MoonScene {
     const g = new THREE.BufferGeometry();
     this.dustPos = new Float32Array(this.dustN * 3); this.dustVel = new Float32Array(this.dustN * 3); this.dustLife = new Float32Array(this.dustN);
     g.setAttribute('position', new THREE.BufferAttribute(this.dustPos, 3));
-    this.dust = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xc9c2b4, size: 0.09, transparent: true, opacity: 0.85, depthWrite: false }));
+    this.dust = new THREE.Points(g, new THREE.PointsMaterial({ color: this.mars ? 0xc98a5e : 0xc9c2b4, size: 0.09, transparent: true, opacity: 0.85, depthWrite: false }));
     this.dust.frustumCulled = false; this.scene.add(this.dust); this.dustNext = 0;
     // scan pulse rings
     this.rings = [];
@@ -264,7 +273,7 @@ export class MoonScene {
     for (let k = 0; k < this.dustN; k++) {
       if (this.dustLife[k] <= 0) { this.dustPos[k * 3 + 1] = -999; continue; }
       this.dustLife[k] -= dt;
-      this.dustVel[k * 3 + 1] -= 1.62 * 0.6 * dt;
+      this.dustVel[k * 3 + 1] -= (this.mars ? 3.71 : 1.62) * 0.6 * dt; // real surface gravity
       for (let a = 0; a < 3; a++) this.dustPos[k * 3 + a] += this.dustVel[k * 3 + a] * dt;
     }
     this.dust.geometry.attributes.position.needsUpdate = true;

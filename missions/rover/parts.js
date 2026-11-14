@@ -29,6 +29,28 @@ export const OBJECTIVES = [
   },
 ];
 
+// Mars (bonus campaign): collect rock samples like NASA Perseverance, which cores rocks into sample tubes.
+export const MARS_OBJECTIVES = [
+  {
+    id: 'm-first', level: 'Easy', title: 'First samples',
+    goal: 'Core 3 rock samples anywhere in Jezero crater.',
+    metric: 'samples', target: 3, needKinds: [], unit: 'samples',
+  },
+  {
+    id: 'm-delta', level: 'Medium', title: 'Delta explorer',
+    goal: 'Core 5 samples, including 2 from the ancient river delta, where life could have left traces.',
+    metric: 'samples', target: 5, needKinds: ['delta', 'delta'], unit: 'samples',
+  },
+  {
+    id: 'm-story', level: 'Hard', title: 'The story of Jezero',
+    goal: 'Core 6 samples that tell the crater’s story: at least one each from the floor, the delta and the rim.',
+    metric: 'samples', target: 6, needKinds: ['floor', 'delta', 'rim'], unit: 'samples',
+  },
+];
+
+export const objectivesFor = (worldId) => (worldId === 'mars' ? MARS_OBJECTIVES : OBJECTIVES);
+export const findObjective = (id) => [...OBJECTIVES, ...MARS_OBJECTIVES].find((o) => o.id === id);
+
 // role: who decides this slot in team mode (up to 4 players)
 export const SLOTS = [
   { id: 'mobility', label: 'Wheels or legs', role: 'Engineer' },

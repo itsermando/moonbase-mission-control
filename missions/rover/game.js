@@ -1,6 +1,11 @@
 // Rover mission screens: Briefing, Landing site, Build, Test. Deploy and Debrief live in deploy.js / debrief.js.
-import { LIMITS, OBJECTIVES, SLOTS, PARTS, summarize, defaultDesign, BUS } from './parts.js';
-import { cells, SLOPE_TEXT, SOURCE_NOTE } from './world.js';
+import { LIMITS, objectivesFor, findObjective, SLOTS, PARTS, summarize, defaultDesign, BUS } from './parts.js';
+import { cells, SLOPE_TEXT, SOURCE_NOTE, useWorld, sunAt, WORLD_ID, relayInfo } from './world.js';
+import { mountShell } from '../../shared/shell.js';
+import { getWorldId, relaySchedule, isClassMode } from '../../shared/campaign.js';
+import { getCrew } from '../../shared/profile.js';
+import { WORLDS } from '../../shared/worlds.js';
+import { whiskersSVG } from '../../shared/cat.js';
 import { runTests, hint, GLOSSARY } from './capcom.js';
 import { setupCanvas, draw, cellFromEvent } from './map.js';
 import { renderDeploy, startDeploy, leaveDeploy } from './deploy.js';
@@ -9,8 +14,15 @@ import { sfx } from '../../shared/fx.js';
 
 const STAGES = [['briefing', 'Briefing'], ['site', 'Landing site'], ['build', 'Build rover'], ['test', 'Test'], ['deploy', 'Deploy'], ['debrief', 'Debrief']];
 
+// Pick the campaign world (Moon or Mars) and plug in the relay schedule from Mission 1.
+const CAMPAIGN_WORLD = getWorldId();
+const ROVER_OK = !!WORLDS[CAMPAIGN_WORLD].roverTarget;
+const RELAY = relaySchedule(CAMPAIGN_WORLD);
+useWorld(ROVER_OK ? CAMPAIGN_WORLD : 'moon', RELAY);
+mountShell({ base: '../../', mission: 'rover', shortcuts: [['W A S D / arrows', 'Drive one square'], ['Click ground twice', 'Plan, then drive'], ['Space', 'Dig 2 hours'], ['F', 'Scan'], ['R', 'Rest 4 hours'], ['Enter', 'Drive the planned route'], ['Esc', 'Clear the route']] });
+
 export const S = {
-  stage: 'briefing', objectiveId: null, players: 1, siteK: null, hover: null, view: 'terrain',
+  stage: 'briefing', objectiveId: null, players: Math.max(1, getCrew().length), siteK: null, hover: null, view: 'terrain',
   design: defaultDesign(), testsRun: 0, tests: null, run: null, plan: null, event: null, eventMsg: null, result: null,
 };
 
@@ -40,7 +52,7 @@ function stageBar() {
 }
 
 export function capcomPanel(tips) {
-  return `<section class="panel capcom" aria-live="polite"><h3><span class="dot"></span>CAPCOM</h3>
+  return `<section class="panel capcom" aria-live="polite"><h3>${whiskersSVG(36)} CAPCOM Whiskers</h3>
     <ul>${tips.map((t) => `<li>${t}</li>`).join('')}</ul>
     <details class="small" style="margin-top:8px"><summary>Space words explained</summary>
     ${GLOSSARY.map(([w, d]) => `<p><b>${w}:</b> ${d}</p>`).join('')}</details></section>`;
@@ -48,7 +60,7 @@ export function capcomPanel(tips) {
 
 function budgetPanel() {
   const sum = summarize(S.design);
-  const obj = OBJECTIVES.find((o) => o.id === S.objectiveId);
+  const obj = S.objectiveId && findObjective(S.objectiveId);
   return `<section class="panel" id="budget"><h3>Mission budget</h3>
     ${meter('Mass on the lander', sum.massKg, LIMITS.landerCapacityKg, 'kg')}
     ${meter('Money', sum.costM + S.testsRun * LIMITS.testCostM, LIMITS.budgetM, '$M')}
@@ -60,16 +72,20 @@ function budgetPanel() {
 
 /* ---------- 1 Briefing ---------- */
 function briefing() {
+  const mars = WORLD_ID === 'mars', days = isClassMode() ? 7 : 14, r = relayInfo();
   main().innerHTML = `<section class="panel stack hero">
-    <div><span class="tag accent">Mission 2 of 3: Excavation and rover</span>
-    <h1 class="big-title">Operation Regolith</h1>
-    <p class="lead">Artemis astronauts will need water to drink, air to breathe and rocket fuel. Near the Moon's south pole, ice hides in craters that have not seen sunlight for billions of years.
-    Design a rover, land it on the rim of <b>Shackleton crater</b> and dig before the <b>14-day</b> lunar daylight runs out.</p>
-    <p class="small muted">The 3D terrain is real: height and slope from NASA's Lunar Reconnaissance Orbiter laser altimeter (LOLA).</p></div>
+    ${ROVER_OK ? '' : `<p class="lastline bad">${WORLDS[CAMPAIGN_WORLD].name} is an orbit-only challenge, so this rover mission runs on the Moon.</p>`}
+    <div><span class="tag accent">Mission 2 of 3 · ${mars ? 'Mars bonus campaign' : 'Excavation and rover'}</span>
+    <h1 class="big-title">${mars ? 'Operation Jezero' : 'Operation Regolith'}</h1>
+    <p class="lead">${mars
+      ? `Billions of years ago a river flowed into Jezero crater. Its delta may hold signs of ancient life, and NASA’s Perseverance rover is collecting rock samples there now. Design a rover, land in the crater and core the most interesting rocks in <b>${days} days</b>.`
+      : `Artemis astronauts will need water to drink, air to breathe and rocket fuel. Near the Moon’s south pole, ice hides in craters that have not seen sunlight for billions of years. Design a rover, land it on the rim of <b>Shackleton crater</b> and dig before the <b>${days}-day</b> lunar daylight runs out.`}</p>
+    <p class="small muted">${mars ? 'The map is Jezero crater from NASA Mars Trek (heights approximate).' : 'The 3D terrain is real: height and slope from NASA’s Lunar Reconnaissance Orbiter laser altimeter (LOLA).'}</p>
+    <p class="lastline ${RELAY.assumed ? '' : 'good'}">${RELAY.assumed ? `No relay satellite flown yet: you get a standard relay (${r.windowH} h of contact every ${r.periodH} h). Fly Mission 1 first to design your own.` : `Your relay from Mission 1: ${r.windowH.toFixed(1)} h of contact about every ${r.periodH.toFixed(1)} h.`}</p></div>
     <h2>Choose your objective</h2>
-    <div class="grid">${OBJECTIVES.map((o) => `<button class="card obj ${S.objectiveId === o.id ? 'selected' : ''}" data-obj="${o.id}">
+    <div class="grid">${objectivesFor(WORLD_ID).map((o) => `<button class="card obj ${S.objectiveId === o.id ? 'selected' : ''}" data-obj="${o.id}">
       <span class="tag ${o.level === 'Easy' ? 'good' : o.level === 'Medium' ? 'warn' : 'bad'}">${o.level}</span>
-      <h3 style="margin-top:8px">${o.title}</h3><p class="small">${o.goal}</p></button>`).join('')}</div>
+      <h3 style="margin-top:8px">${o.title}</h3><p class="small">${o.goal}</p>${isClassMode() ? '<p class="small muted">Class mode: half the target.</p>' : ''}</button>`).join('')}</div>
     <h2>Crew</h2>
     <div class="row">${[1, 2, 3, 4].map((n) => `<button data-players="${n}" class="${S.players === n ? 'primary' : ''}">${n} player${n > 1 ? 's' : ''}</button>`).join('')}</div>
     <p class="small muted">${S.players > 1 ? 'Team mode: each part of the rover is owned by a role (Mission lead, Engineer, Scientist, Comms). Pass the laptop and agree together before launch.' : 'Solo: you play every role.'}</p>
@@ -89,6 +105,9 @@ function mapControls() {
     ${[['terrain', 'Terrain'], ['slope', 'NASA slope map'], ['sun', 'Sunlight']].map(([v, l]) => `<button data-view="${v}" class="${S.view === v ? 'primary' : ''}">${l}</button>`).join('')}</div>`;
 }
 export function legend() {
+  if (WORLD_ID === 'mars') return `<div class="legend"><span><i style="background:rgba(70,194,138,.6)"></i>Safe to land</span>
+    <span><i style="border:2px solid #7fdcff"></i>River delta (best samples)</span><span><i style="background:#ffd166"></i>Crater rim</span>
+    <span><i style="background:#fff"></i>Sampled</span></div><p class="small muted" style="margin-top:6px">${SOURCE_NOTE}</p>`;
   return `<div class="legend"><span><i style="background:rgba(70,194,138,.6)"></i>Safe to land (&lt;10°)</span>
     <span><i style="border:2px solid #7fdcff"></i>Cold trap (may hold ice)</span><span><i style="background:rgba(20,40,110,.9)"></i>Shackleton crater, never lit</span>
     <span><i style="background:#ffd166"></i>Planned route</span></div><p class="small muted" style="margin-top:6px">${SOURCE_NOTE}</p>`;
@@ -97,10 +116,10 @@ export function legend() {
 function site() {
   const c = S.siteK != null ? cells[S.siteK] : null;
   main().innerHTML = `<section class="panel stack"><div><h1>Pick a landing site</h1>
-    <p>Click a green square. Landers tip over on slopes above about 10°. Ice is in the blue-outlined cold traps and in the dark crater.</p></div>
-    ${mapControls()}<div class="mapwrap"><canvas id="map" aria-label="Map of Shackleton crater rim"></canvas><div class="tip" id="tip" hidden></div></div>${legend()}
+    <p>${WORLD_ID === 'mars' ? 'Click a green square. The river delta (blue outlines) and the crater rim (gold dots) hold the most valuable rocks.' : 'Click a green square. Landers tip over on slopes above about 10°. Ice is in the blue-outlined cold traps and in the dark crater.'}</p></div>
+    ${mapControls()}<div class="mapwrap"><canvas id="map" aria-label="Map of the landing area"></canvas><div class="tip" id="tip" hidden></div></div>${legend()}
     <div class="row"><button id="back">Back</button><button class="primary" id="next" ${c ? '' : 'disabled'}>Build the rover</button>
-    <span class="small muted">${c ? `Selected: slope ${SLOPE_TEXT[c.slope]}, sunlight ${Math.round(c.sun * 100)}%, ${c.elev >= 150 ? 'Earth in view' : 'no direct Earth view'}` : 'No site yet'}</span></div></section>`;
+    <span class="small muted">${c ? `Selected: slope ${SLOPE_TEXT[c.slope]}${WORLD_ID === 'mars' ? '' : `, sunlight ${Math.round(sunAt(c, 0) * 100)}%, ${c.elev >= 150 ? 'Earth in view' : 'no direct Earth view'}`}` : 'No site yet'}</span></div></section>`;
   const canvas = $('#map');
   const redraw = () => draw(canvas, { view: S.view, mode: 'site', siteK: S.siteK, hover: S.hover });
   setupCanvas(canvas, redraw); redraw();
@@ -109,7 +128,7 @@ function site() {
     const tip = $('#tip');
     if (h) {
       const ok = h.slope === 0 && h.kind === 'plain';
-      tip.innerHTML = `<b>${ok ? 'Safe to land' : 'Not safe to land'}</b><br>Slope ${SLOPE_TEXT[h.slope]} · Sun ${Math.round(h.sun * 100)}%<br>${h.elev >= 150 ? 'Earth in view' : 'No direct Earth view'}`;
+      tip.innerHTML = `<b>${ok ? 'Safe to land' : 'Not safe to land'}</b><br>Slope ${SLOPE_TEXT[h.slope]}${WORLD_ID === 'mars' ? ` · ${h.kind === 'plain' ? 'open plain' : h.kind}` : ` · Sun ${Math.round(sunAt(h, 0) * 100)}%<br>${h.elev >= 150 ? 'Earth in view' : 'No direct Earth view'}`}`;
       const r = canvas.getBoundingClientRect();
       tip.style.left = `${Math.min(r.width - 200, e.clientX - r.left + 14)}px`; tip.style.top = `${e.clientY - r.top + 10}px`; tip.hidden = false;
     }
@@ -151,7 +170,7 @@ function partCards(slot) {
 function buildSide() {
   const sum = summarize(S.design);
   $('#budget-wrap').innerHTML = budgetPanel();
-  $('#cap-wrap').innerHTML = capcomPanel(hint('build', { sum, objective: OBJECTIVES.find((o) => o.id === S.objectiveId) }));
+  $('#cap-wrap').innerHTML = capcomPanel(hint('build', { sum, objective: findObjective(S.objectiveId) }));
 }
 
 function build() {
@@ -181,7 +200,7 @@ function build() {
     if (b.id === 'back') go('site');
     if (b.id === 'next') {
       sfx.click(); S.testsRun++;
-      S.tests = runTests(summarize(S.design), OBJECTIVES.find((o) => o.id === S.objectiveId), S.siteK); go('test');
+      S.tests = runTests(summarize(S.design), findObjective(S.objectiveId), S.siteK); go('test');
     }
   };
 }

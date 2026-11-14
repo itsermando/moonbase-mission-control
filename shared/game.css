@@ -95,3 +95,5 @@ small { color: var(--muted); font-size: 12px; }
 .badge.got { border: 1px solid #ffd166; color: var(--text); background: #2a2210; }
 .badge.got b::before { content: "★ "; color: #ffd166; }
 @media (prefers-reduced-motion: reduce) { *, *::before { animation: none !important; transition: none !important; } }
+/* keep the 3D view buttons clear of the HUD on smaller screens */
+@media (max-width: 1100px) { .hud.tr { top: auto; bottom: 12px; right: 12px; } .hud.tl { width: min(300px, calc(100% - 24px)); } }
