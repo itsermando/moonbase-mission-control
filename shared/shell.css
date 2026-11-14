@@ -77,3 +77,14 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .gauge-burn .needle { position: absolute; top: -4px; bottom: -4px; width: 4px; margin-left: -2px; background: var(--gold); border-radius: 2px; box-shadow: 0 0 10px var(--gold); left: 0; }
 .lastline { font-size: 14px; padding: 6px 10px; border-radius: 8px; background: var(--panel-2); border-left: 3px solid var(--accent); margin-top: 8px; }
 .lastline.bad { border-left-color: var(--bad); } .lastline.good { border-left-color: var(--good); }
+/* comms link bar and code table */
+.linkbar { position: relative; display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 14px 12px; margin-top: 12px; border-radius: 10px; background: #0d1426; border: 1px solid var(--line); font-size: 13px; }
+.linkbar::before { content: ""; position: absolute; left: 60px; right: 60px; top: 50%; border-top: 2px dashed var(--line-2); }
+.linkbar span { position: relative; z-index: 1; background: #0d1426; padding: 2px 8px; border-radius: 6px; border: 1px solid var(--line-2); }
+.linkbar .hop { color: var(--ice); }
+.linkbar .pulse { position: absolute; left: 60px; top: calc(50% - 5px); width: 10px; height: 10px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 12px var(--gold); opacity: 0; }
+.linkbar .pulse.go { animation: beam 0.9s ease-in forwards; }
+@keyframes beam { from { left: 60px; opacity: 1; } to { left: calc(100% - 70px); opacity: 1; } }
+.codegrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; margin-top: 8px; font-family: var(--mono); font-size: 14px; }
+.codegrid span { background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; }
+.mission-1 .bit.parity { border-style: dashed; border-color: var(--gold); }
