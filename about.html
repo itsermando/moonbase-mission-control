@@ -62,7 +62,7 @@
       </ul>
 
       <h3>Privacy, safety and accessibility</h3>
-      <p>No accounts, no tracking, no data leaves the device: profiles and scores live in the browser’s local storage. Everything is keyboard-playable (press <span class="kbd">?</span> for shortcuts), colours always come with words, motion respects “reduce motion”, and the 3D rover view has a 2D map alternative. The 3D library loads from a public CDN; the rest works offline.</p>
+      <p>No accounts, no tracking, no data leaves the device: profiles and scores live in the browser’s local storage. The one optional exception is the AI-worded analyst, which is off by default: if a teacher turns it on, the game sends only mission numbers (never names or profiles) to our own server to have a forecast explained in plain words. Every number in a forecast is still computed by the game’s own code. Everything is keyboard-playable (press <span class="kbd">?</span> for shortcuts), colours always come with words, motion respects “reduce motion”, and the 3D rover view has a 2D map alternative. The 3D library loads from a public CDN; the rest works offline.</p>
 
       <h3>What’s next?</h3>
       <p>Classroom trials with more teachers; NASA’s measured lunar illumination maps to replace our sunlight model; online team play; more worlds for the rover.</p>
@@ -119,6 +119,9 @@
         <li>Planet constants (GM, radius, day length) from NASA/JPL planetary data; mission facts from NASA mission pages (LRO, LCROSS, VIPER, RASSOR, Perseverance, Ingenuity, MRO, MAVEN, MESSENGER, Dawn, Gateway, Deep Space Network).</li>
         <li>Challenge resources used for the design: NASA “Design and Develop Science Missions”, JPL Concept Maturity Levels, NASA GSFC Mission Design Lab study stages, NASA GMAT.</li>
       </ul>
+      <h3>Where each source sits in the NASA Open Data Portal</h3>
+      <p>We checked every source against the catalog at <a href="https://data.nasa.gov/">data.nasa.gov</a>. The portal lists these missions’ archives as metadata and points to the Planetary Data System or the original host for the files themselves, so the pictures and terrain in the game come through NASA’s Trek services. Licences are shown as the catalog states them; NASA’s media usage guidelines apply to every image.</p>
+      <div id="datasets" class="scroll-x"></div>
       <h3>Music and sound</h3>
       <figure class="golden"><img src="shared/golden-record.jpg" alt="The Voyager Golden Record and the Voyager spacecraft" loading="lazy" width="981" height="552">
         <figcaption>The Voyager Golden Record, Earth’s message to the stars (NASA/JPL-Caltech, PIA14113).</figcaption></figure>
@@ -139,7 +142,9 @@
     import { mountShell } from './shared/shell.js';
     import { exportCSV } from './shared/profile.js';
     import { isClassMode, setClassMode } from './shared/campaign.js';
+    import { sourcesTable } from './shared/datasets.js';
     mountShell({ base: '' });
+    document.getElementById('datasets').innerHTML = sourcesTable();
     const show = () => {
       const t = (location.hash || '#judges').slice(1);
       document.querySelectorAll('[data-tab]').forEach((s) => { s.hidden = s.dataset.tab !== t; });
