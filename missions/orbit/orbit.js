@@ -46,7 +46,7 @@ export function positionAt(el, tSec) {
   const { nu, r } = stateAt(el, tSec);
   return posFromNu(el, nu, r);
 }
-function posFromNu(el, nu, r) {
+export function posFromNu(el, nu, r) {
   const u = nu + el.w;
   return [r * Math.cos(u), r * Math.sin(u) * Math.cos(el.i), r * Math.sin(u) * Math.sin(el.i)];
 }

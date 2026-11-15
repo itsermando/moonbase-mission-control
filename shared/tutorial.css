@@ -1,0 +1,45 @@
+/* CAPCOM tutorials (shared/tutorial.js): speech bubble, spotlight ring and the start offer */
+.tut, .tut-offer { position: fixed; left: 16px; bottom: 16px; z-index: 62; width: min(400px, calc(100vw - 32px)); box-sizing: border-box; color: var(--text, #e6f1ff);
+  background: rgba(6, 10, 24, .98); border: 1px solid var(--accent, #00e5ff); border-radius: 14px; box-shadow: 0 16px 50px rgba(0, 0, 0, .6); font: 14px/1.5 var(--font, system-ui, sans-serif); }
+.tut { padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+.tut[hidden], .tut-ring[hidden] { display: none; }
+.tut-head { display: flex; align-items: center; gap: 10px; }
+.tut-head > div { flex: 1; display: flex; flex-direction: column; line-height: 1.2; }
+.tut-head small { opacity: .7; font-size: 12px; }
+.tut-x { background: none; border: 0; color: inherit; font-size: 22px; line-height: 1; cursor: pointer; padding: 2px 8px; border-radius: 8px; clip-path: none; }
+.tut-bar { height: 4px; border-radius: 4px; background: rgba(255, 255, 255, .12); overflow: hidden; }
+.tut-bar i { display: block; height: 100%; background: var(--accent, #00e5ff); transition: width .3s; }
+.tut-say { margin: 0; font-size: 15px; }
+.tut-sci { margin: 0; padding: 8px 10px; font-size: 13px; border-left: 3px solid var(--accent-2, #ff3fa4); background: rgba(255, 63, 164, .08); border-radius: 0 8px 8px 0; }
+.tut-wait { margin: 0; font-size: 13px; opacity: .85; display: flex; align-items: center; gap: 8px; }
+.tut-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent, #00e5ff); flex: none; animation: tutpulse 1.2s ease-in-out infinite; }
+.tut-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tut-grow { flex: 1; }
+.tut button, .tut-offer button { font: inherit; font-size: 13px; padding: 6px 11px; border-radius: 8px; clip-path: none; cursor: pointer; color: #cfe8ff; background: rgba(0, 229, 255, .08); border: 1px solid rgba(0, 229, 255, .4); }
+.tut button:disabled { opacity: .4; cursor: default; }
+.tut button.primary, .tut-offer button.primary { background: var(--accent, #00e5ff); color: #021018; border-color: var(--accent, #00e5ff); font-weight: 700; }
+.tut button:focus-visible, .tut-offer button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.tut b, .tut-offer b { font-weight: 700; }
+.tut .kbd { display: inline-block; padding: 0 6px; border: 1px solid rgba(255, 255, 255, .4); border-radius: 5px; font-family: monospace; font-size: 12px; }
+
+.tut-ring { position: fixed; z-index: 61; pointer-events: none; border-radius: 12px; border: 2px solid var(--accent, #00e5ff); box-shadow: 0 0 0 3px rgba(0, 229, 255, .25), 0 0 22px rgba(0, 229, 255, .6);
+  transition: left .15s, top .15s, width .15s, height .15s; animation: tutring 1.6s ease-in-out infinite; }
+
+.tut-offer { z-index: 60; display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; }
+.tut-offer p { margin: 4px 0 8px; }
+.tut-offer .small { font-size: 13px; opacity: .85; }
+.tut-offer .tut-link { background: none; border-color: transparent; text-decoration: underline; padding-left: 4px; }
+.tut-offer.tut-done { border-color: var(--good, #39ff88); }
+
+@keyframes tutring { 50% { box-shadow: 0 0 0 7px rgba(0, 229, 255, .12), 0 0 30px rgba(0, 229, 255, .8); } }
+@keyframes tutpulse { 50% { opacity: .3; transform: scale(.7); } }
+html[data-quality="low"] .tut-ring, html[data-quality="low"] .tut-dot { animation: none; }
+html[data-quality="low"] .tut-ring { transition: none; }
+@media (prefers-reduced-motion: reduce) { .tut-ring, .tut-dot { animation: none; } .tut-ring { transition: none; } .tut-bar i { transition: none; } }
+
+/* phones: dock to the bottom as a sheet, above the Ask button */
+@media (max-width: 719px) {
+  .tut, .tut-offer { left: 8px; right: 8px; width: auto; bottom: 64px; max-height: 46vh; overflow-y: auto; }
+  .tut-sci { display: none; }
+}
+@media print { .tut, .tut-ring, .tut-offer { display: none !important; } }
