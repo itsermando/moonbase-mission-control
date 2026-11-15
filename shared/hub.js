@@ -9,7 +9,7 @@ import { setMusic, isMusicOn, isPlaying } from './music.js';
 import { aiEnabled, setAiEnabled } from './llm.js';
 
 const $ = (s) => document.querySelector(s);
-let globe = null;
+let globe = null, layer = 'imagery';
 
 mountShell({ base: '', mission: null });
 {
@@ -28,11 +28,15 @@ function hero() {
     <p class="lead">A decision-based teaching game. Design a relay satellite, a rover and a radio link, fly them on real NASA maps, survive the surprises, and learn from every result.</p>
     <div class="row"><a href="${MISSIONS[next].href}"><button class="primary big">${getMission(w.id, w.missions[0]) ? 'Continue' : 'Start'} the ${w.name} campaign</button></a>
     <a href="about.html"><button class="big">Briefing Room (judges and teachers)</button></a></div>`;
-  $('#hero-world').innerHTML = `<b>${w.name}</b> · ${w.tierLabel}<br><span class="small muted">${w.blurb}</span>`;
-  if (globe) globe.setWorld(w); else import('./globe.js').then(({ Globe }) => {
+  if (!w.textureTopo) layer = 'imagery';
+  $('#hero-world').innerHTML = `<b>${w.name}</b> · ${w.tierLabel}<br><span class="small muted">${w.blurb}</span>
+    ${w.textureTopo ? `<div class="mv-tabs" role="group" aria-label="Map layer"><button type="button" data-layer="imagery" class="${layer === 'imagery' ? 'on' : ''}">NASA imagery</button><button type="button" data-layer="topo" class="${layer === 'topo' ? 'on' : ''}">Elevation (laser altimeter)</button></div>` : ''}`;
+  $('#hero-world').onclick = (e) => { const b = e.target.closest('[data-layer]'); if (!b) return; layer = b.dataset.layer; globe?.setWorld(w, layer); document.querySelectorAll('#hero-world [data-layer]').forEach((x) => x.classList.toggle('on', x === b)); };
+  if (globe) globe.setWorld(w, layer); else import('./globe.js').then(({ Globe }) => {
     globe = new Globe($('#hero-globe'), { world: w, autoRotate: 0.12, controls: true });
+    if (layer === 'topo') globe.setWorld(w, layer);
     globe.setSite(w.site.latDeg); globe.frame(3.1);
-  }).catch(() => { $('#hero-globe').innerHTML = `<div class="planet big" style="background-image:url(${w.texture})"></div>`; });
+  }).catch(() => { $('#hero-globe').innerHTML = `<div class="planet big" style="background-image:url(${w.texture.replace('textures/', 'textures/thumbs/')})"></div>`; });
   if (globe) globe.setSite(w.site.latDeg);
 }
 
@@ -54,7 +58,7 @@ function track() {
 function worlds() {
   const cur = getWorld().id;
   $('#worlds').innerHTML = Object.values(WORLDS).map((w) => `<button class="wcard ${w.id === cur ? 'on' : ''}" data-world="${w.id}">
-    <div class="planet" style="background-image:url(${w.texture})"></div>
+    <div class="planet" style="background-image:url(${w.texture.replace('textures/', 'textures/thumbs/')})"></div>
     <div><span class="tag ${w.tier === 'main' ? 'good' : w.tier === 'bonus' ? 'warn' : ''}">${w.tierLabel}</span><h3>${w.name}</h3>
     <p class="small muted">${w.site.name}</p><p class="nums">Gravity ${w.gravity} m/s² · signal ${lightDelayText(w)}</p></div></button>`).join('');
 }

@@ -127,8 +127,8 @@ body::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-even
 .pill.good { color: var(--green); background: rgba(57, 255, 159, .1); } .pill.warn { color: var(--amber); background: rgba(255, 176, 0, .1); }
 
 /* worlds */
-.worlds { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 22px; }
-.worlds li { padding: 22px; background: var(--panel); border: 1px solid var(--line); text-align: center; }
+.worlds { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px; }
+.worlds li { padding: 18px; background: var(--panel); border: 1px solid var(--line); text-align: center; }
 .worlds h3 { text-transform: uppercase; margin: 10px 0 6px; font-size: 1.3rem; }
 .worlds p { color: #cfe0fb; font-size: 1rem; margin: 0; }
 .planet { width: min(150px, 60%); aspect-ratio: 1; margin: 0 auto 16px; border-radius: 50%; background: #444 0 0/200% 100% repeat-x; background-image: var(--tex, none);

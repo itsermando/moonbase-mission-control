@@ -10,6 +10,7 @@ import { lightDelayText } from '../../shared/worlds.js';
 import { playClip } from '../../shared/music.js';
 import { treeHTML } from '../../shared/tree.js';
 import { aiNote } from '../../shared/llm.js';
+import { mountViewer } from '../../shared/models.js';
 
 const $ = (s) => document.querySelector(s);
 const world = getWorld();
@@ -34,8 +35,11 @@ const whiskers = (tips) => `<section class="panel capcom" aria-live="polite"><h3
   <p><b>Light delay:</b> radio travels at the speed of light, which still takes ${lightDelayText(world)} from ${world.name} to Earth.</p>
   <p><b>Deep Space Network:</b> NASA’s three giant antenna sites in California, Spain and Australia, spaced so one always faces the spacecraft.</p></details></section>`;
 
+let mvs = []; // viewers of real NASA hardware (shared/models.js)
+const killMv = () => { mvs.forEach((v) => v.dispose()); mvs = []; };
+const showReal = (title, ids, height = 210) => { killMv(); $('#side').insertAdjacentHTML('beforeend', '<section class="panel" id="mv-real"></section>'); mvs.push(mountViewer($('#mv-real'), ids, { title, height })); };
 function stageBar() { $('#stages').innerHTML = STAGES.map((s, n) => `<span class="stage ${n < S.stage ? 'done' : n === S.stage ? 'now' : ''}">${n + 1} ${s}</span>`).join(''); }
-function go(n) { if (n === 2 && S.stage !== 2) playClip('sputnik', 0.45); S.stage = n; clearInterval(S.timer); const m = $('#main'); m.onclick = null; m.onchange = null; document.onkeydown = null; render(); window.scrollTo({ top: 0 }); }
+function go(n) { if (n === 2 && S.stage !== 2) playClip('sputnik', 0.45); S.stage = n; clearInterval(S.timer); killMv(); const m = $('#main'); m.onclick = null; m.onchange = null; document.onkeydown = null; render(); window.scrollTo({ top: 0 }); }
 
 /* ---------- 1 Briefing ---------- */
 function briefing() {
@@ -55,7 +59,8 @@ function briefing() {
     <div class="row"><button class="primary big" id="next">Plan the downlink</button></div>
     <p class="small muted">Mission design by Jeongha (Cat on Moon). The station on duty is simplified from the real Deep Space Network schedule.</p></section>`;
   $('#side').innerHTML = whiskers(['Every choice has a cost: compression saves time but loses detail; error checks add bits but catch damage.', 'Signals are slow to cross space. You can’t ask Earth for help instantly.']);
-  $('#next').onclick = () => { sfx.click(); go(1); };
+  showReal('Real NASA hardware on this link', ['tdrs', 'dsn-70m', 'dsn-34m']);
+  $('#next').onclick = (e) => { e.stopPropagation(); sfx.click(); go(1); }; // else this click bubbles into the Plan screen's #main handler and skips it
 }
 
 /* ---------- 2 Plan ---------- */
@@ -186,6 +191,7 @@ function uplink() {
     <p id="ul-msg" class="small" aria-live="polite"></p>
     <details open><summary><b>Code table</b> (A = 1 = 00001)</summary><div class="codegrid">${table.map((ch) => `<span><b>${ch}</b> ${C.encodeLetter(ch)}</span>`).join('')}</div></details></section>`;
   $('#side').innerHTML = whiskers(['Read each 5-bit group as a number: 00100 = 4 = D.', 'Binary place values from the right: 1, 2, 4, 8, 16.']);
+  showReal('Where Earth’s reply comes from', ['dsn-70m', 'dsn-34m'], 190);
   const send = () => {
     const a = $('#answer').value.trim().toUpperCase(); if (!a) { $('#ul-msg').textContent = 'Type the word first.'; return; }
     ul.tries++;
@@ -238,7 +244,7 @@ function debrief() {
     <div class="panel" style="background:var(--panel-2)"><h2>Campaign total: ${total} / 300</h2><p>Orbit, rover and comms together. Every mission’s choices shaped the next one.</p></div>
     <div class="row"><a href="../../hub.html"><button class="primary big">Back to mission control</button></a><button id="again">Send again</button></div></section>`;
   $('#side').innerHTML = whiskers(['Real missions do this every day: NASA’s Deep Space Network talks to dozens of spacecraft, from the Moon to beyond the planets.']);
-  $('#again').onclick = () => { S.ul = null; go(1); };
+  $('#again').onclick = (e) => { e.stopPropagation(); S.ul = null; go(1); };
 }
 
 function render() { stageBar(); [briefing, plan, downlink, uplink, debrief][S.stage](); }

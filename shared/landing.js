@@ -17,7 +17,8 @@ try {
 
 // Planet textures load only when scrolled into view (they are large NASA mosaics)
 const planets = document.querySelectorAll('.planet[data-tex]');
-const loadTex = (el) => { el.style.setProperty('--tex', `url(${el.dataset.tex})`); };
+// a url() inside a CSS variable resolves against the stylesheet (in shared/), so make it absolute from the page first
+const loadTex = (el) => { el.style.setProperty('--tex', `url(${new URL(el.dataset.tex, document.baseURI).href})`); };
 if ('IntersectionObserver' in window) {
   const io = new IntersectionObserver((entries) => entries.forEach((e) => { if (e.isIntersecting) { loadTex(e.target); io.unobserve(e.target); } }), { rootMargin: '200px' });
   planets.forEach((p) => io.observe(p));
@@ -35,8 +36,22 @@ Promise.all([import('./globe.js'), import('../missions/orbit/orbit.js')]).then((
   const toGlobe = (p) => [p[0] / moon.radiusKm, p[2] / moon.radiusKm, -p[1] / moon.radiusKm];
   g.setSite(moon.site.latDeg);
   g.setPlannerOrbit(O.orbitPath(el).map(toGlobe), toGlobe(O.periapsisPos(el)), toGlobe(O.apoapsisPos(el)));
-  g.frame((el.ra / moon.radiusKm) * 2.4);
+  g.frame((el.ra / moon.radiusKm) * 3.3); // far enough that the whole ring fits in the 40° field of view
   let t = 0;
   g.onFrame = (dt) => { if (!reduce) t += (dt * el.T) / 14; g.setSat(toGlobe(O.positionAt(el, t))); };
   g.setSat(toGlobe(O.positionAt(el, 0)));
 }).catch(showFallback);
+
+// "Real hardware" showcase: the NASA 3D models load only when the section scrolls into view
+const hangar = $('#hangar-mv');
+if (hangar) {
+  new IntersectionObserver((e, io) => {
+    if (!e[0].isIntersecting) return;
+    io.disconnect();
+    import('./models.js').then(({ mountViewer }) => mountViewer(hangar, ['saturn-v', 'lro', 'perseverance', 'rassor', 'apollo-lm', 'dsn-70m'], { height: 320 }))
+      .catch(() => { hangar.innerHTML = '<p class="small muted">The 3D models need an internet connection.</p>'; });
+  }, { rootMargin: '200px' }).observe(hangar);
+}
+
+// Ask CAPCOM works on the landing page too, so a first-time visitor can ask what the game is about
+import('./campaign.js').then(({ getWorld }) => import('./ask.js').then(({ mountAsk }) => mountAsk({ mission: 'all', getWorld, plain: true }))).catch(() => {});

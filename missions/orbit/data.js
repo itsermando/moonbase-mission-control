@@ -9,7 +9,7 @@ export const ROCKETS = [
   { id: 'medium', name: 'Medium launcher', capKg: 1200, costM: 60, info: 'The workhorse: most relay satellites fly on one of these.' },
   { id: 'heavy', name: 'Heavy launcher', capKg: 4000, costM: 140, info: 'Lifts anything you like, but eats most of the budget.' },
 ];
-export const PAYLOAD_FACTOR = { moon: 1, mars: 0.55, mercury: 0.35, ceres: 0.4 };
+export const PAYLOAD_FACTOR = { moon: 1, mars: 0.55, mercury: 0.35, ceres: 0.4, vesta: 0.4 };
 
 export const ANTENNAS = [
   { id: 'patch', name: 'Small patch antenna', massKg: 5, costM: 5, powerW: 30, rate: 1, info: 'Light, slow data.' },
@@ -25,10 +25,11 @@ export const POWER = [
 // Expected loss is about equal on purpose (0.4 x 14 h vs 6 h), so the choice is about risk, not a trick.
 export const STORM = { safeH: 6, resetH: 14, hitChance: 0.4 };
 
-export const GOALS = { moon: 0.5, mars: 0.35, mercury: 0.35, ceres: 0.3 };
+export const GOALS = { moon: 0.5, mars: 0.35, mercury: 0.35, ceres: 0.3, vesta: 0.3 };
 export const LIMITS = {
   moon: { minPeri: 20, maxApo: 75000 }, mars: { minPeri: 120, maxApo: 25000 },
   mercury: { minPeri: 200, maxApo: 16000 }, ceres: { minPeri: 50, maxApo: 6000 },
+  vesta: { minPeri: 30, maxApo: 5000 },
 };
 
 // Presets based on real orbits (simplified to two-body ellipses)
@@ -52,6 +53,11 @@ export const PRESETS = {
     { name: 'Low mapping orbit', like: 'like NASA Dawn’s LAMO', p: { periAltKm: 385, apoAltKm: 385, incDeg: 90, argpDeg: 270 } },
     { name: 'High mapping orbit', like: 'like NASA Dawn’s HAMO', p: { periAltKm: 1470, apoAltKm: 1470, incDeg: 90, argpDeg: 270 } },
     { name: 'Elliptical orbit', like: 'a custom design', p: { periAltKm: 400, apoAltKm: 5000, incDeg: 30, argpDeg: 270 } },
+  ],
+  vesta: [
+    { name: 'Low mapping orbit', like: 'like NASA Dawn’s LAMO', p: { periAltKm: 210, apoAltKm: 210, incDeg: 90, argpDeg: 90 } },
+    { name: 'High mapping orbit', like: 'like NASA Dawn’s HAMO', p: { periAltKm: 680, apoAltKm: 680, incDeg: 90, argpDeg: 90 } },
+    { name: 'Elliptical orbit', like: 'between Dawn’s survey and mapping orbits', p: { periAltKm: 210, apoAltKm: 2700, incDeg: 90, argpDeg: 90 } },
   ],
 };
 

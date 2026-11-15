@@ -1,0 +1,27 @@
+/* Ask CAPCOM (shared/ask.js) and the Graphics setting in the help dialog (shared/shell.js) */
+.ask-btn { position: fixed; right: 16px; bottom: 16px; z-index: 54; display: flex; align-items: center; gap: 8px; padding: 5px 14px 5px 8px; border-radius: 999px; clip-path: none;
+  background: rgba(6, 10, 24, .96); border: 1px solid var(--accent, #00e5ff); color: var(--text, #e6f1ff); font-size: 13px; cursor: pointer; box-shadow: 0 6px 24px rgba(0, 0, 0, .5); }
+.ask-panel { position: fixed; right: 16px; bottom: 68px; z-index: 56; width: min(390px, calc(100vw - 32px)); max-height: min(72vh, 580px); display: flex; flex-direction: column; gap: 10px;
+  background: rgba(6, 10, 24, .98); box-shadow: 0 16px 50px rgba(0, 0, 0, .6); }
+.ask-panel[hidden] { display: none; }
+.ask-head { display: flex; justify-content: space-between; align-items: center; }
+.ask-log { overflow-y: auto; flex: 1 1 auto; min-height: 90px; display: flex; flex-direction: column; gap: 8px; padding-right: 4px; }
+.ask-msg { padding: 8px 11px; border-radius: 10px; font-size: 14px; line-height: 1.45; max-width: 94%; }
+.ask-msg.me { align-self: flex-end; background: rgba(0, 229, 255, .14); border: 1px solid rgba(0, 229, 255, .35); }
+.ask-msg.cap { align-self: flex-start; background: rgba(255, 63, 164, .08); border: 1px solid rgba(255, 63, 164, .3); }
+.ask-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.ask-chips button { font-size: 12px; padding: 5px 9px; text-align: left; }
+.ask-form { display: flex; gap: 8px; }
+.ask-form input { flex: 1; min-width: 0; padding: 8px 10px; font: inherit; color: var(--text, #e6f1ff); background: var(--panel-2, #0d1424); border: 1px solid var(--line-2, #2a3f5f); border-radius: 8px; }
+@media (max-width: 520px) { .ask-btn span { display: none; } .ask-btn { padding: 5px 8px; } }
+@media print { .ask-btn, .ask-panel { display: none !important; } }
+
+.seg { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0; }
+.seg button.on { border-color: var(--accent, #00e5ff); color: #fff; background: rgba(0, 229, 255, .16); }
+
+/* pages without the game's own button and panel styles (the landing page) */
+.ask-panel.plain { padding: 14px; border-radius: 14px; background: #0b1222; border: 1px solid rgba(0, 229, 255, .4); color: #e6f1ff; font-family: inherit; }
+.ask-panel.plain button, .ask-btn.plain { font-family: inherit; font-weight: 600; font-size: 12px; line-height: 1.2; color: #cfe8ff; background: rgba(0, 229, 255, .08); border: 1px solid rgba(0, 229, 255, .4); border-radius: 8px; padding: 6px 10px; cursor: pointer; }
+.ask-panel.plain button.primary { background: #00e5ff; color: #021018; border-color: #00e5ff; }
+.ask-panel.plain .small { font-size: 12px; opacity: .75; margin: 0; }
+.ask-btn.plain { border-radius: 999px; font-size: 13px; background: rgba(6, 10, 24, .96); }

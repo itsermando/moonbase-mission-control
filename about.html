@@ -37,7 +37,7 @@
         <tr><td>Consequences for every decision; no single perfect answer</td><td>Every part shows its mass, cost and power change. Automated tests show different designs can each win, and bad ones really fail.</td></tr>
         <tr><td>Simulation, evaluation and feedback on why</td><td>3D simulations, random events, and a debrief with a score, the reasons, badges and “Why it went this way” lessons.</td></tr>
         <tr><td>Team play for up to four</td><td>A crew of up to four profiles; roles label each design decision; everyone earns XP. (Shared screen, not online.)</td></tr>
-        <tr><td>Difficulty levels, scenarios, random events, dashboards, reports, leaderboards</td><td>Easy/Medium/Hard; Moon, Mars, Mercury and Ceres; dust, stuck wheels, solar flares and more; HUDs; debriefs; profiles with medals and history.</td></tr>
+        <tr><td>Difficulty levels, scenarios, random events, dashboards, reports, leaderboards</td><td>Easy/Medium/Hard; Moon, Mars, Mercury, Ceres and Vesta; dust, stuck wheels, solar flares and more; HUDs; debriefs; profiles with medals and history.</td></tr>
       </table>
 
       <h3>Where does NASA data do real work?</h3>
@@ -47,7 +47,8 @@
         <tr><td>2 Rover (Moon)</td><td>LRO LOLA laser-altimeter slope and elevation of Shackleton crater’s rim, via NASA Moon Trek</td><td>Where a lander may touch down, where each rover can drive, how long each move takes. Shackleton’s walls are steeper than 20°, so no wheeled rover can reach the icy floor: players must engineer a tether or a walker.</td></tr>
         <tr><td>2 Rover (Mars)</td><td>MGS MOLA + Mars Express HRSC relief and MRO CTX images of Jezero crater, via NASA Mars Trek</td><td>The map, the river delta, rim and floor sample sites, and routes. Heights are read from a colour map, so they are approximate and labelled as such.</td></tr>
         <tr><td>3 Comms</td><td>Signal delay from real Earth distances; NASA’s Deep Space Network stations</td><td>How long messages take and which station is listening.</td></tr>
-        <tr><td>All</td><td>NASA global mosaics: LRO WAC (Moon), Viking (Mars), MESSENGER (Mercury), Dawn (Ceres)</td><td>The 3D globes and the solar-system map.</td></tr>
+        <tr><td>All</td><td>NASA global maps: LRO WAC and LOLA elevation (Moon), Viking and MOLA elevation (Mars), MESSENGER (Mercury), Dawn (Ceres and Vesta)</td><td>The 3D globes, with a switch between imagery and elevation for the Moon and Mars.</td></tr>
+        <tr><td>All</td><td>NASA 3D Resources (github.com/nasa/NASA-3D-Resources): Satellite Kit, Saturn V, Atlas, Jupiter-C, LRO, MRO, MESSENGER, Dawn, TDRS, Perseverance, Opportunity, RASSOR, Apollo Lunar Module, Viking Lander, Deep Space Network dishes</td><td>The models shown when you configure the spacecraft, pick hardware and plan the link. Shown for illustration; the game’s numbers are simplified.</td></tr>
       </table>
 
       <h3>How accurate is it?</h3>
@@ -56,7 +57,7 @@
 
       <h3>How do we know it works?</h3>
       <ul>
-        <li><b>Over 30 automated tests</b> run on every change (GitHub Actions): orbit physics against real missions, terrain rules, design limits, the parity code and the hand-offs between missions. A robot player wins all three Moon objectives and the hardest Mars objective with sensible rovers, while badly designed rovers really fail.</li>
+        <li><b>Over 70 automated tests</b> run on every change (GitHub Actions): orbit physics against real missions, terrain rules, design limits, the parity code and the hand-offs between missions. A robot player wins all three Moon objectives and the hardest Mars objective with sensible rovers, while badly designed rovers really fail.</li>
         <li><b>Playtest:</b> a teacher tested an earlier version. His suggestions shaped this one: three connected missions, player profiles, class mode, and clearer feedback.</li>
         <li><b>Data checked twice:</b> the terrain was sampled in two independent ways and matched exactly.</li>
       </ul>

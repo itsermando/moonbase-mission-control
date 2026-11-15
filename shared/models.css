@@ -1,0 +1,15 @@
+/* NASA 3D model viewers (shared/models.js loads this file itself) */
+.mv { display: flex; flex-direction: column; gap: 8px; }
+.mv h3 { margin: 0; }
+.mv-stage { position: relative; border: 1px solid var(--line-2, #2a3f5f); overflow: hidden; background: radial-gradient(300px 180px at 50% 40%, #16213d, #03050a 75%); }
+.mv-load { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 12px; pointer-events: none; }
+.mv-load[hidden] { display: none; }
+.mv-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.mv-tabs button { font-size: 12px; padding: 5px 10px; cursor: pointer; }
+.mv-tabs button.on { border-color: var(--accent, #00e5ff); color: #fff; background: rgba(0, 229, 255, .16); }
+.mv-cap p { margin: 4px 0 0; }
+.mv-credit { margin: 0; font-size: 11px; color: var(--muted, #8aa0bf); }
+/* landing page has no global button styling */
+#hangar-mv .mv-tabs button { font: 600 12px/1 'Share Tech Mono', monospace; letter-spacing: .04em; color: #cfe8ff; background: rgba(0, 229, 255, .06); border: 1px solid rgba(0, 229, 255, .4); padding: 7px 11px; }
+#hangar-mv .mv-tabs button:hover { background: rgba(0, 229, 255, .16); }
+#hangar-mv .mv-tabs button.on { color: #fff; border-color: #00e5ff; background: rgba(0, 229, 255, .22); }

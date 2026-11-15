@@ -11,6 +11,7 @@ import { setupCanvas, draw, cellFromEvent } from './map.js';
 import { renderDeploy, startDeploy, leaveDeploy } from './deploy.js';
 import { renderDebrief } from './debrief.js';
 import { sfx } from '../../shared/fx.js';
+import { mountViewer } from '../../shared/models.js';
 
 const STAGES = [['briefing', 'Briefing'], ['site', 'Landing site'], ['build', 'Build rover'], ['test', 'Test'], ['deploy', 'Deploy'], ['debrief', 'Debrief']];
 
@@ -30,10 +31,15 @@ const $ = (sel) => document.querySelector(sel);
 const main = () => $('#main');
 const side = () => $('#side');
 let preview = null; // 3D rover turntable on the Build screen
+let mvs = []; // viewers of real NASA hardware (shared/models.js)
+const killMv = () => { mvs.forEach((v) => v.dispose()); mvs = []; };
+const REAL_HARDWARE = { moon: ['rassor', 'apollo-lm'], mars: ['perseverance', 'opportunity', 'viking-lander'] };
+const showReal = (title, height) => { side().insertAdjacentHTML('beforeend', '<section class="panel" id="mv-real"></section>'); mvs.push(mountViewer($('#mv-real'), REAL_HARDWARE[WORLD_ID] || REAL_HARDWARE.moon, { title, height })); };
 
 export function go(stage) {
   if (S.stage === 'deploy' && stage !== 'deploy') leaveDeploy();
   if (preview && stage !== 'build') { preview.dispose(); preview = null; }
+  killMv();
   S.stage = stage; render(); window.scrollTo({ top: 0 });
 }
 
@@ -72,6 +78,7 @@ function budgetPanel() {
 
 /* ---------- 1 Briefing ---------- */
 function briefing() {
+  killMv();
   const mars = WORLD_ID === 'mars', days = isClassMode() ? 7 : 14, r = relayInfo();
   main().innerHTML = `<section class="panel stack hero">
     ${ROVER_OK ? '' : `<p class="lastline bad">${WORLDS[CAMPAIGN_WORLD].name} is an orbit-only challenge, so this rover mission runs on the Moon.</p>`}
@@ -91,6 +98,7 @@ function briefing() {
     <p class="small muted">${S.players > 1 ? 'Team mode: each part of the rover is owned by a role (Mission lead, Engineer, Scientist, Comms). Pass the laptop and agree together before launch.' : 'Solo: you play every role.'}</p>
     <div class="row"><button class="primary big" id="next" ${S.objectiveId ? '' : 'disabled'}>Choose a landing site</button></div></section>`;
   side().innerHTML = capcomPanel(hint('briefing', {}));
+  showReal('Real NASA hardware like yours', 210);
   main().onclick = (e) => {
     const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.obj) { S.objectiveId = b.dataset.obj; sfx.select(); briefing(); }
@@ -201,6 +209,7 @@ function build() {
   side().innerHTML = `<section class="panel preview-panel"><h3>Your rover</h3><div id="preview" class="preview"></div>
     <p class="small muted">Not to scale. It updates as you pick parts.</p></section><div id="budget-wrap"></div><div id="cap-wrap"></div>`;
   buildSide();
+  showReal('Real NASA hardware to compare', 190);
   import('./scene3d.js').then(({ RoverPreview }) => {
     if (S.stage !== 'build') return;
     preview = new RoverPreview($('#preview')); preview.setDesign(S.design);

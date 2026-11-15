@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { terrainData, WORLD_ID } from './world.js';
 import { buildRover, buildLander, animateRover } from './rover-model.js';
+import { pixelRatio, useAntialias, useShadows, softShadows, shadowMapSize, onChange, Governor } from '../../shared/perf.js';
 
 let T = terrainData(), N = T.n;
 // Grey level 0-255 spans roughly the 4.2 km from crater floor to rim; one cell is 333 m.
@@ -38,10 +39,10 @@ export class MoonScene {
     configure();
     this.mars = WORLD_ID === 'mars';
     this.el = container;
-    this.renderer = new THREE.WebGLRenderer({ antialias: true });
-    this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer = new THREE.WebGLRenderer({ antialias: useAntialias() });
+    this.renderer.setPixelRatio(pixelRatio());
+    this.renderer.shadowMap.enabled = useShadows();
+    this.renderer.shadowMap.type = softShadows() ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     container.appendChild(this.renderer.domElement);
 
@@ -68,6 +69,8 @@ export class MoonScene {
     this.ro = new ResizeObserver(() => this.resize()); this.ro.observe(container);
     this.resize();
     this.loop = this.loop.bind(this);
+    this.gov = new Governor();
+    this.offQ = onChange(() => this.applyQuality());
     this.raf = requestAnimationFrame(this.loop);
   }
 
@@ -94,7 +97,7 @@ export class MoonScene {
     this.scene.add(new THREE.AmbientLight(0x56607a, 0.9));
     this.scene.add(new THREE.HemisphereLight(0x8090b0, 0x202020, 0.6));
     const sun = new THREE.DirectionalLight(0xfff4e0, 3.2);
-    sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+    sun.castShadow = useShadows(); sun.shadow.mapSize.set(shadowMapSize(), shadowMapSize());
     Object.assign(sun.shadow.camera, { left: -36, right: 36, top: 36, bottom: -36, near: 1, far: 260 });
     sun.shadow.bias = -0.0008; sun.shadow.normalBias = 0.04;
     this.scene.add(sun, sun.target); this.sun = sun;
@@ -311,6 +314,19 @@ export class MoonScene {
     });
   }
 
+  /** Apply a new graphics level live (pixel ratio, shadows). */
+  applyQuality() {
+    const r = this.renderer, on = useShadows();
+    r.setPixelRatio(pixelRatio()); this.resize();
+    r.shadowMap.enabled = on; r.shadowMap.type = softShadows() ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
+    if (this.sun) {
+      this.sun.castShadow = on;
+      const n = shadowMapSize();
+      if (this.sun.shadow.mapSize.x !== n) { this.sun.shadow.map?.dispose(); this.sun.shadow.map = null; this.sun.shadow.mapSize.set(n, n); }
+    }
+    this.scene.traverse((o) => { if (o.material) [].concat(o.material).forEach((m) => { m.needsUpdate = true; }); });
+  }
+
   resize() {
     const w = this.el.clientWidth || 800, h = this.el.clientHeight || 500;
     this.renderer.setSize(w, h, false); this.camera.aspect = w / h; this.camera.updateProjectionMatrix();
@@ -318,8 +334,9 @@ export class MoonScene {
 
   setDark(dark) { this.state.dark = dark; }
 
-  loop() {
+  loop(ts) {
     this.raf = requestAnimationFrame(this.loop);
+    if (!this.gov.render(ts)) return;
     const dt = Math.min(0.05, this.clock.getDelta()), time = this.clock.elapsedTime, now = performance.now();
     let moving = false;
 
@@ -412,7 +429,7 @@ export class MoonScene {
   }
 
   dispose() {
-    cancelAnimationFrame(this.raf); this.ro.disconnect(); this.controls.dispose();
+    cancelAnimationFrame(this.raf); this.offQ?.(); this.ro.disconnect(); this.controls.dispose();
     disposeTree(this.scene, { materials: true });
     this.renderer.dispose(); this.renderer.forceContextLoss();
     this.renderer.domElement.remove();
@@ -423,8 +440,8 @@ export class MoonScene {
 export class RoverPreview {
   constructor(container) {
     this.el = container;
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+    this.renderer = new THREE.WebGLRenderer({ antialias: useAntialias(), alpha: true });
+    this.renderer.setPixelRatio(pixelRatio());
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     container.appendChild(this.renderer.domElement);
     this.scene = new THREE.Scene();
@@ -437,8 +454,11 @@ export class RoverPreview {
     ground.rotation.x = -Math.PI / 2; this.scene.add(ground);
     this.clock = new THREE.Clock();
     this.ro = new ResizeObserver(() => this.resize()); this.ro.observe(container); this.resize();
-    const loop = () => {
+    const gov = new Governor();
+    this.offQ = onChange(() => { this.renderer.setPixelRatio(pixelRatio()); this.resize(); });
+    const loop = (ts) => {
       this.raf = requestAnimationFrame(loop);
+      if (!gov.render(ts)) return;
       const t = this.clock.getElapsedTime();
       if (this.rover) { this.rover.rotation.y = t * 0.5; animateRover(this.rover, t, { moving: true, digging: true }); }
       this.renderer.render(this.scene, this.camera);
@@ -455,7 +475,7 @@ export class RoverPreview {
   }
   resize() { const w = this.el.clientWidth || 300, h = this.el.clientHeight || 220; this.renderer.setSize(w, h, false); this.camera.aspect = w / h; this.camera.updateProjectionMatrix(); }
   dispose() {
-    cancelAnimationFrame(this.raf); this.ro.disconnect();
+    cancelAnimationFrame(this.raf); this.offQ?.(); this.ro.disconnect();
     disposeTree(this.scene, { materials: true });
     this.renderer.dispose(); this.renderer.forceContextLoss(); this.renderer.domElement.remove();
   }

@@ -169,3 +169,6 @@ button:disabled { opacity: .45; cursor: not-allowed; filter: grayscale(.6); }
 .golden-panel { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 18px; align-items: center; }
 .golden-panel .golden { margin: 0; }
 @media (max-width: 760px) { .golden-panel { grid-template-columns: 1fr; } }
+
+/* keep the HUD on one row on laptop-width screens once the campaign score gets wider */
+@media (min-width: 901px) and (max-width: 1360px) { .shell { gap: 8px; padding-inline: 10px; } .shell .track .link { width: 8px; } .shell .icon { padding-inline: 8px; } .shell .node { padding-inline: 10px 12px; } }

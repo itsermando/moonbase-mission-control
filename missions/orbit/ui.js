@@ -12,13 +12,19 @@ import * as P from './plan.js';
 import * as A from './advisor.js';
 import { treeHTML } from '../../shared/tree.js';
 import { aiNote } from '../../shared/llm.js';
+import { mountViewer } from '../../shared/models.js';
 
 const $ = (s) => document.querySelector(s);
 const world = getWorld(), wid = getWorldId();
 const STAGES = ['Briefing', 'Spacecraft', 'Orbit design', 'Capture burn', 'Operations', 'Debrief'];
-const S = { stage: 0, rocket: 'medium', antenna: 'dish', power: 'solarL', p: { ...D.PRESETS[wid][1].p }, preset: 1, view: '3d',
+const S = { layer: 'imagery', stage: 0, rocket: 'medium', antenna: 'dish', power: 'solarL', p: { ...D.PRESETS[wid][1].p }, preset: 1, view: '3d',
   dv: null, fuelFactor: 1, result: null, retries: 0, err: 0 };
-let globe = null, timer = null, gen = 0;
+let globe = null, timer = null, gen = 0, mvs = [];
+const killMv = () => { mvs.forEach((v) => v.dispose()); mvs = []; };
+// Real NASA models for each choice (shared/models.js). The satellite is assembled from NASA's Satellite Kit parts.
+const REAL_ORBITER = { moon: 'lro', mars: 'mro', mercury: 'messenger', ceres: 'dawn', vesta: 'dawn' };
+const ROCKET_MODEL = { small: 'jupiter-c', medium: 'atlas', heavy: 'saturn-v' };
+const KIT = { antenna: { patch: 'kit-radio-1', dish: 'kit-radio-2', big: 'kit-radio-3' }, power: { solarS: 'kit-wings-1', solarL: 'kit-wings-3' } };
 
 mountShell({ base: '../../', mission: 'orbit', shortcuts: [['1–3', 'Load a real-mission orbit (design stage)'], ['G', 'Switch 3D view / ground track'], ['Space', 'Pause or play operations']] });
 
@@ -52,7 +58,7 @@ function stageBar() { $('#stages').innerHTML = STAGES.map((s, n) => `<span class
 const whiskers = (tips) => `<section class="panel capcom" aria-live="polite"><h3>${whiskersSVG(34)} CAPCOM Whiskers</h3><ul>${tips.map((t) => `<li>${t}</li>`).join('')}</ul>
   <details class="small"><summary>Space words explained</summary>${D.GLOSSARY.map(([w, x]) => `<p><b>${w}:</b> ${x}</p>`).join('')}</details></section>`;
 function go(n) {
-  S.stage = n; gen++; clearInterval(timer); if (globe) { globe.dispose(); globe = null; }
+  S.stage = n; gen++; clearInterval(timer); killMv(); if (globe) { globe.dispose(); globe = null; }
   const m = $('#main'); m.onclick = null; m.oninput = null; m.onchange = null; document.onkeydown = null;
   render(); window.scrollTo({ top: 0 });
 }
@@ -61,11 +67,16 @@ async function makeGlobe(el) {
   try {
     const { Globe } = await import('../../shared/globe.js');
     if (my !== gen || !el.isConnected) return null; // the player already moved to another stage
-    const g = new Globe(el, { base: '../../', world, autoRotate: 0 }); g.setSite(world.site.latDeg); g.setSiteCone(world.site.latDeg); return g;
+    const g = new Globe(el, { base: '../../', world, autoRotate: 0 }); g.setSite(world.site.latDeg); g.setSiteCone(world.site.latDeg); if (S.layer === 'topo') g.setWorld(world, 'topo'); return g;
   }
   catch { el.innerHTML = '<p class="small muted" style="padding:20px">3D view needs an internet connection; use the ground track.</p>'; return null; }
 }
-const viewSwitch = () => `<div class="row small"><button data-v="3d" class="${S.view === '3d' ? 'on' : ''}">3D view</button><button data-v="gt" class="${S.view === 'gt' ? 'on' : ''}">Ground track</button><span class="muted">press G to switch</span></div>`;
+document.addEventListener('click', (e) => { // map layer toggle (works on every stage that shows the globe)
+  const b = e.target.closest('[data-layer]'); if (!b) return;
+  S.layer = b.dataset.layer; if (globe) globe.setWorld(world, S.layer);
+  document.querySelectorAll('[data-layer]').forEach((x) => { x.dataset.layer = S.layer === 'topo' ? 'imagery' : 'topo'; x.textContent = S.layer === 'topo' ? 'Show imagery' : 'Show elevation'; });
+});
+const viewSwitch = () => `<div class="row small"><button data-v="3d" class="${S.view === '3d' ? 'on' : ''}">3D view</button><button data-v="gt" class="${S.view === 'gt' ? 'on' : ''}">Ground track</button><span class="muted">press G to switch</span>${world.textureTopo ? `<button data-layer="${S.layer === 'topo' ? 'imagery' : 'topo'}" title="Switch the globe between NASA imagery and laser-altimeter elevation">${S.layer === 'topo' ? 'Show imagery' : 'Show elevation'}</button>` : ''}</div>`;
 const viewBoxes = () => `<div class="globe-box" id="globe" ${S.view === '3d' ? '' : 'hidden'}></div><canvas class="gt" id="gt" ${S.view === 'gt' ? '' : 'hidden'} aria-label="Ground track of the satellite on a NASA map"></canvas>`;
 
 /* ---------- 1 Briefing ---------- */
@@ -83,6 +94,8 @@ function briefing() {
     <p class="small muted">Constants from NASA/JPL. Globe and map: ${world.source}.</p>
     <div class="row"><button class="primary big" id="next">Configure the spacecraft</button></div></section>`;
   $('#side').innerHTML = whiskers(['Every choice has a cost: a bigger antenna sends more data but needs more power, mass and fuel.', 'Your orbit decides when the rover can call Earth in Mission 2.']);
+  $('#side').insertAdjacentHTML('beforeend', '<section class="panel" id="mv-real"></section>');
+  mvs.push(mountViewer($('#mv-real'), [REAL_ORBITER[wid], 'tdrs'], { title: 'Real NASA spacecraft like yours', height: 210 }));
   $('#next').onclick = (e) => { e.stopPropagation(); sfx.click(); go(1); };
 }
 
@@ -90,6 +103,7 @@ function briefing() {
 const cards = (list, key, extra) => `<div class="choice-grid">${list.map((x) => `<button class="choice ${S[key] === x.id ? 'on' : ''}" data-k="${key}" data-val="${x.id}">
   <b>${x.name}</b><span class="small muted">${x.info}</span><span class="nums">${extra(x)}</span></button>`).join('')}</div>`;
 function spacecraft() {
+  killMv();
   const d = design();
   $('#main').innerHTML = `<section class="panel stack"><h1>Configure the spacecraft</h1>
     <h2>Launch vehicle</h2>${cards(D.ROCKETS, 'rocket', (x) => `${fmt(x.capKg * D.PAYLOAD_FACTOR[wid])} kg to ${world.name} · $${x.costM}M`)}
@@ -101,6 +115,11 @@ function spacecraft() {
     <tr><td>Dry mass</td><td>${fmt(d.dry)} kg</td></tr><tr><td>Rocket capacity</td><td>${fmt(d.cap)} kg</td></tr>
     <tr><td>Cost</td><td>$${d.cost}M / $${D.BUDGET_M}M</td></tr><tr><td>Power</td><td>${d.haveW} W for ${d.needW} W</td></tr></table></section>`
     + whiskers([d.needW > d.haveW ? `The antenna needs ${d.needW} W but the wings give ${d.haveW} W.` : 'A bigger dish gives Mission 3 more time to send the rover’s science home.']);
+  const ant = D.ANTENNAS.find((x) => x.id === S.antenna), pw = D.POWER.find((x) => x.id === S.power), rk = D.ROCKETS.find((x) => x.id === S.rocket);
+  $('#side').insertAdjacentHTML('beforeend', '<section class="panel" id="mv-sat"></section><section class="panel" id="mv-rk"></section>');
+  mvs.push(mountViewer($('#mv-sat'), [{ key: 'sat', files: ['kit-body-2', KIT.antenna[S.antenna], KIT.power[S.power]], name: 'Your relay satellite', kind: 'NASA Satellite Kit',
+    fact: `${ant.name} and ${pw.name.toLowerCase()} on the standard bus. Changing a choice changes the model.` }], { title: 'Your spacecraft', height: 200 }));
+  mvs.push(mountViewer($('#mv-rk'), [ROCKET_MODEL[S.rocket]], { title: rk.name, height: 220 }));
   $('#main').onclick = (e) => {
     const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.k) { S[b.dataset.k] = b.dataset.val; sfx.select(); spacecraft(); }

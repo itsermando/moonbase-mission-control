@@ -5,6 +5,8 @@ import { getCrew, levelOf } from './profile.js';
 import { getWorld, getMission, isClassMode, campaignScore } from './campaign.js';
 import { MISSIONS } from './worlds.js';
 import { isMuted, setMuted, sfx, toast } from './fx.js';
+import { mountAsk } from './ask.js';
+import { getMode, setMode, isDegraded } from './perf.js';
 import { initMusic, isMusicOn, isPlaying, setMusic, setAudioBase, startMusic, stopMusic } from './music.js';
 
 let opts = { base: '', mission: null, shortcuts: [] };
@@ -17,6 +19,8 @@ export function mountShell(o = {}) {
   if (!el) { el = document.createElement('header'); el.id = 'shell'; document.body.prepend(el); }
   renderShell();
   setAudioBase(opts.base); initMusic();
+  mountAsk({ mission: opts.mission || 'all', getWorld });
+  window.addEventListener('quality-degraded', () => toast('This device looked busy, so graphics switched to Lite for smoother play. Change it under ? > Graphics.', 'info', 8000));
   document.addEventListener('keydown', (e) => {
     if (e.key === '?' && !e.target.closest?.('input,textarea')) toggleHelp();
     if (e.key === 'Escape') document.getElementById('help-overlay')?.remove();
@@ -53,16 +57,27 @@ export function renderShell() {
   el.querySelector('#sh-help').onclick = toggleHelp;
 }
 
+const GFX = [['auto', 'Auto', 'Sharp and smooth, and drops to Lite by itself if your device struggles.'], ['high', 'High', 'Full resolution, large soft shadows and all effects. Needs a good graphics card.'], ['low', 'Lite', 'Lower resolution, no shadows, no animated backgrounds, 30 frames per second. Best for older laptops.']];
+
 function toggleHelp() {
   const old = document.getElementById('help-overlay');
   if (old) { old.remove(); return; }
-  const rows = [['?', 'Show or hide this help'], ['Esc', 'Close pop-ups'], ...opts.shortcuts];
+  const rows = [['?', 'Show or hide this help'], ['/', 'Ask CAPCOM a question'], ['Esc', 'Close pop-ups'], ...opts.shortcuts];
   const d = document.createElement('div'); d.id = 'help-overlay'; d.className = 'modal-bg';
   d.innerHTML = `<div class="panel modal pop" role="dialog" aria-label="Keyboard shortcuts"><h2>Keyboard shortcuts</h2>
     <table class="keys">${rows.map(([k, v]) => `<tr><td><span class="kbd">${k}</span></td><td>${v}</td></tr>`).join('')}</table>
+    <h2>Graphics</h2>
+    <div class="seg" role="radiogroup" aria-label="Graphics quality">${GFX.map(([id, name]) => `<button type="button" role="radio" data-gfx="${id}" aria-checked="${getMode() === id}" class="${getMode() === id ? 'on' : ''}">${name}</button>`).join('')}</div>
+    <p class="small muted" id="gfx-note"></p>
     <button class="primary" id="help-close">Got it</button></div>`;
   document.body.appendChild(d);
-  d.onclick = (e) => { if (e.target === d || e.target.id === 'help-close') d.remove(); };
+  const note = () => { d.querySelector('#gfx-note').textContent = `${GFX.find(([id]) => id === getMode())[2]}${getMode() === 'auto' && isDegraded() ? ' (Lite is on right now because the device looked busy.)' : ''}`; };
+  note();
+  d.onclick = (e) => {
+    const g = e.target.closest('[data-gfx]');
+    if (g) { setMode(g.dataset.gfx); d.querySelectorAll('[data-gfx]').forEach((b) => { const on = b === g; b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on)); }); note(); return; }
+    if (e.target === d || e.target.id === 'help-close') d.remove();
+  };
 }
 
 /** Celebrate an awardRun() result: XP toast, level-up banner, new badges. */

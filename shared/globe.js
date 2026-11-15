@@ -2,6 +2,7 @@
 // Units: 1 = the world's radius.
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { pixelRatio, useAntialias, onChange, Governor } from './perf.js';
 
 export function latToVec(latDeg, lonDeg = 0, r = 1) {
   const lat = (latDeg * Math.PI) / 180, lon = (lonDeg * Math.PI) / 180;
@@ -11,8 +12,8 @@ export function latToVec(latDeg, lonDeg = 0, r = 1) {
 export class Globe {
   constructor(container, { base = '', world, autoRotate = 0.08, controls = true, stars = true } = {}) {
     this.el = container; this.base = base; this.autoRotate = autoRotate;
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+    this.renderer = new THREE.WebGLRenderer({ antialias: useAntialias(), alpha: true });
+    this.renderer.setPixelRatio(pixelRatio());
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     container.appendChild(this.renderer.domElement);
     this.scene = new THREE.Scene();
@@ -32,8 +33,12 @@ export class Globe {
     this.ro = new ResizeObserver(() => this.resize()); this.ro.observe(container); this.resize();
     this.clock = new THREE.Clock();
     this.onFrame = null;
-    const loop = () => {
+    const gov = new Governor();
+    this.visible = true; this.io = new IntersectionObserver((e) => { this.visible = e[0].isIntersecting; }); this.io.observe(container);
+    this.offQ = onChange(() => { this.renderer.setPixelRatio(pixelRatio()); this.resize(); });
+    const loop = (ts) => {
       this.raf = requestAnimationFrame(loop);
+      if (!this.visible || !gov.render(ts)) return; // offscreen, hidden tab, or Lite's 30 fps cap
       const dt = Math.min(0.05, this.clock.getDelta());
       this.spin.rotation.y += this.autoRotate * dt;
       if (this.onFrame) this.onFrame(dt, this.clock.elapsedTime);
@@ -97,9 +102,10 @@ export class Globe {
     this.scene.add(new THREE.Points(g, new THREE.PointsMaterial({ color: 0xffffff, size: 1.2, sizeAttenuation: false, transparent: true, opacity: 0.85 })));
   }
 
-  setWorld(world) {
-    this.world = world;
-    new THREE.TextureLoader().load(this.base + world.texture, (tex) => {
+  /** layer: 'imagery' (global mosaic) or 'topo' (colour-coded elevation, where NASA data exists for the world). */
+  setWorld(world, layer = 'imagery') {
+    this.world = world; this.layer = layer === 'topo' && world.textureTopo ? 'topo' : 'imagery';
+    new THREE.TextureLoader().load(this.base + (this.layer === 'topo' ? world.textureTopo : world.texture), (tex) => {
       tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
       this.planet.material.map = tex; this.planet.material.color.set(0xffffff); this.planet.material.needsUpdate = true;
     }, undefined, () => { this.planet.material.color.set(world.tint || '#999'); });
@@ -149,5 +155,5 @@ export class Globe {
 
   frame(dist = 3.4) { this.camera.position.setLength(dist); }
   resize() { const w = this.el.clientWidth || 400, h = this.el.clientHeight || 400; this.renderer.setSize(w, h, false); this.camera.aspect = w / h; this.camera.updateProjectionMatrix(); }
-  dispose() { cancelAnimationFrame(this.raf); this.ro.disconnect(); this.controls?.dispose(); this.renderer.dispose(); this.renderer.domElement.remove(); }
+  dispose() { cancelAnimationFrame(this.raf); this.ro.disconnect(); this.io?.disconnect(); this.offQ?.(); this.controls?.dispose(); this.renderer.dispose(); this.renderer.domElement.remove(); }
 }

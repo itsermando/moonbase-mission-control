@@ -90,3 +90,14 @@ test('an areostationary orbit stays over Jezero (planet turns at its sidereal ra
   console.log('areostationary drift over a day', (b.lon - a.lon).toFixed(2), 'deg; period', (el.T / 3600).toFixed(3), 'h');
   assert.ok(Math.abs(b.lon - a.lon) < 2);
 });
+
+test('Dawn-like 210 km circular orbit at Vesta takes about 4.3 hours', () => {
+  const el = O.elements({ periAltKm: 210, apoAltKm: 210, incDeg: 90 }, WORLDS.vesta);
+  const h = el.T / 3600; console.log('Dawn LAMO period', h.toFixed(2), 'h');
+  assert.ok(h > 4.1 && h < 4.5); // Dawn's low altitude mapping orbit at Vesta: about 4.3 h
+});
+
+test('Dawn-like 680 km high mapping orbit at Vesta takes about 12 hours', () => {
+  const el = O.elements({ periAltKm: 680, apoAltKm: 680, incDeg: 90 }, WORLDS.vesta);
+  const h = el.T / 3600; assert.ok(h > 11.5 && h < 12.8); // Dawn HAMO: about 12.3 h
+});

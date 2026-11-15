@@ -1,7 +1,9 @@
 // Vercel function: words a forecast the game has ALREADY computed. It never does the maths.
-// Env: AI_GATEWAY_API_KEY (required), ADVISOR_MODEL (required, an ID from https://ai-gateway.vercel.sh/v1/models),
+// Works with any provider that has an OpenAI-compatible /chat/completions endpoint, including free tiers.
+// Env: ADVISOR_API_KEY (required), ADVISOR_MODEL (required),
+//      ADVISOR_BASE_URL (optional, default Groq's free tier: https://api.groq.com/openai/v1),
 //      ALLOWED_ORIGINS (optional, comma-separated, only for calls from another site).
-// Without the env vars it answers 503 and the game keeps its built-in explanations.
+// Without the key and model it answers 503 and the game keeps its built-in explanations.
 
 const KINDS = {
   'orbit-design': 'three computed relay-satellite designs and their trade-offs',
@@ -33,7 +35,8 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') { res.setHeader('Access-Control-Allow-Methods', 'POST'); res.setHeader('Access-Control-Allow-Headers', 'Content-Type'); return res.status(204).end(); }
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
 
-  const key = process.env.AI_GATEWAY_API_KEY, model = process.env.ADVISOR_MODEL;
+  const key = process.env.ADVISOR_API_KEY, model = process.env.ADVISOR_MODEL;
+  const base = (process.env.ADVISOR_BASE_URL || 'https://api.groq.com/openai/v1').replace(/\/+$/, '');
   if (!key || !model) return res.status(503).json({ error: 'advisor not configured' });
 
   const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
@@ -45,7 +48,7 @@ export default async function handler(req, res) {
   if (!facts.length) return res.status(400).json({ error: 'bad request' });
 
   try {
-    const r = await fetch('https://ai-gateway.vercel.sh/v1/chat/completions', {
+    const r = await fetch(`${base}/chat/completions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
       body: JSON.stringify({ model, max_tokens: 200, temperature: 0.4, messages: [
