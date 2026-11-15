@@ -1,0 +1,246 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta
+        name="description"
+        content="Operation Deep Link is an educational NASA Deep Space Network simulation. Encode scientific data, transmit radio signals, detect spacecraft communication, and reconstruct a Moon image."
+    >
+
+    <title>Operation Deep Link — DSN Mission</title>
+
+    <link rel="stylesheet" href="/missions/comms/connection.css">
+</head>
+
+<body>
+
+    <header class="topbar">
+
+        <div class="brand">
+            <span>← Mission control</span>
+            <strong>Operation Deep Link</strong>
+        </div>
+
+        <nav
+            id="step-nav"
+            aria-label="Mission stages"
+        ></nav>
+
+    </header>
+
+    <main class="layout">
+
+        <section
+            class="main-col"
+            aria-label="Mission gameplay"
+        >
+
+            <div class="stage">
+
+                <div class="hud">
+
+                    <div class="chips">
+
+                        <span id="phase-chip">
+                            SPACECRAFT
+                        </span>
+
+                        <span id="energy-chip">
+                            ENERGY 80 W
+                        </span>
+
+                        <span id="link-chip">
+                            EARTH LINK ●
+                        </span>
+
+                    </div>
+
+                    <div class="hudstats">
+
+                        <div>
+                            MISSION PROGRESS
+
+                            <b id="progress-text">
+                                0%
+                            </b>
+                        </div>
+
+                        <div
+                            class="meter"
+                            aria-label="Mission progress"
+                        >
+                            <i id="progress-bar"></i>
+                        </div>
+
+                        <div id="status-line">
+                            Ready for transmission
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div
+                    id="scene"
+                    aria-label="Current mission stage"
+                ></div>
+
+            </div>
+
+            <div class="controls">
+
+                <div class="control-top">
+
+                    <strong id="control-title">
+                        Mission briefing
+                    </strong>
+
+                    <span id="control-hint">
+                        NASA DSN simulation
+                    </span>
+
+                </div>
+
+                <div id="control-body"></div>
+
+            </div>
+
+        </section>
+
+        <aside
+            class="sidebar"
+            aria-label="Mission information"
+        >
+
+            <div class="capcom">
+
+                <h3>
+                    <span class="online">●</span>
+                    CAPCOM
+                </h3>
+
+                <p id="capcom-message"></p>
+
+                <details>
+
+                    <summary>
+                        Space words explained
+                    </summary>
+
+                    <p>
+                        <b>DSN:</b>
+                        Deep Space Network, NASA's worldwide
+                        radio antenna network used to
+                        communicate with distant spacecraft.
+                    </p>
+
+                    <p>
+                        <b>Sync pattern:</b>
+                        A known sequence of bits that helps
+                        a receiver identify data boundaries.
+                    </p>
+
+                    <p>
+                        <b>Bit:</b>
+                        A binary digit representing either
+                        0 or 1.
+                    </p>
+
+                    <p>
+                        <b>Encoding:</b>
+                        Representing information as digital
+                        data for storage or transmission.
+                    </p>
+
+                    <p>
+                        <b>Signal detection:</b>
+                        Identifying a spacecraft's radio
+                        signal among received signals.
+                    </p>
+
+                    <p>
+                        <b>Error correction:</b>
+                        Recovering information that may
+                        have been damaged during transmission.
+                    </p>
+
+                    <p>
+                        <b>Majority voting:</b>
+                        A simplified error-correction method
+                        that compares three copies of a bit
+                        and selects the value appearing
+                        at least twice.
+                    </p>
+
+                    <p>
+                        <b>Mission score:</b>
+                        A game performance score based on
+                        mistakes made during the mission.
+                        It is not an actual NASA mission
+                        success metric.
+                    </p>
+
+                </details>
+
+            </div>
+
+            <div class="mission-card">
+
+                <h3>SCIENCE NOTE</h3>
+
+                <p id="science-note"></p>
+
+            </div>
+
+            <div class="mission-card">
+
+                <h3>NASA IMAGE SOURCE</h3>
+
+                <p
+                    id="image-credit"
+                    aria-live="polite"
+                >
+                    Connecting to NASA Image and Video Library…
+                </p>
+
+                <a
+                    href="https://images.nasa.gov/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
+                    NASA Image Library ↗
+                </a>
+
+            </div>
+
+            <div class="mission-card">
+
+                <h3>ABOUT THIS SIMULATION</h3>
+
+                <p>
+                    This game introduces the basic principles
+                    of deep-space communication through
+                    simplified interactive activities.
+                </p>
+
+                <p>
+                    Signal sounds, synchronization timing,
+                    and error-correction puzzles are
+                    educational models, not exact
+                    reproductions of NASA DSN operations.
+                </p>
+
+            </div>
+
+        </aside>
+
+    </main>
+
+    <script src="/missions/comms/connection.js"></script>
+
+</body>
+</html>
