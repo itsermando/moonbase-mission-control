@@ -27,7 +27,7 @@ function hero() {
     <p class="hero-hook">Every choice has a cost.<br><span>Our game shows you why.</span></p>
     <p class="lead">A decision-based teaching game. Design a relay satellite, a rover and a radio link, fly them on real NASA maps, survive the surprises, and learn from every result.</p>
     <div class="row"><a href="${MISSIONS[next].href}"><button class="primary big">${getMission(w.id, w.missions[0]) ? 'Continue' : 'Start'} the ${w.name} campaign</button></a>
-    <a href="about.html"><button class="big">Briefing Room (judges and teachers)</button></a></div>`;
+    ${getMission(w.id, w.missions[0]) ? `<a href="summary.html"><button class="big">Campaign summary</button></a>` : ""}<a href="about.html"><button class="big">Briefing Room (judges and teachers)</button></a></div>`;
   if (!w.textureTopo) layer = 'imagery';
   $('#hero-world').innerHTML = `<b>${w.name}</b> · ${w.tierLabel}<br><span class="small muted">${w.blurb}</span>
     ${w.textureTopo ? `<div class="mv-tabs" role="group" aria-label="Map layer"><button type="button" data-layer="imagery" class="${layer === 'imagery' ? 'on' : ''}">NASA imagery</button><button type="button" data-layer="topo" class="${layer === 'topo' ? 'on' : ''}">Elevation (laser altimeter)</button></div>` : ''}`;

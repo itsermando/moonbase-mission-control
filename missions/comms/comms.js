@@ -57,6 +57,7 @@ function briefing() {
     ${assumed ? '<p class="lastline">No rover mission flown yet, so you are sending a standard test packet set. Fly Mission 2 to send your own science.</p>' : '<p class="lastline good">These packets come from your Mission 2 rover.</p>'}
     ${relay.assumed ? '<p class="lastline">No relay orbit flown yet: you have a standard contact window. A better Mission 1 orbit gives you more time.</p>' : `<p class="lastline good">Your Mission 1 relay gives ${relay.windowH.toFixed(1)} h contacts and a data rate of ×${relay.dataRate}, which sets your time here.</p>`}
     <div class="row"><button class="primary big" id="next">Plan the downlink</button></div>
+    <p class="dl-link"><a href="./connection.html"><b>Training: Operation Deep Link</b></a> <span class="small muted">Practise like a DSN operator first: encode data, find the spacecraft’s signal and fix errors by majority voting. Designed by Jeongha.</span></p>
     <p class="small muted">Mission design by Jeongha (Cat on Moon). The station on duty is simplified from the real Deep Space Network schedule.</p></section>`;
   $('#side').innerHTML = whiskers(['Every choice has a cost: compression saves time but loses detail; error checks add bits but catch damage.', 'Signals are slow to cross space. You can’t ask Earth for help instantly.']);
   showReal('Real NASA hardware on this link', ['tdrs', 'dsn-70m', 'dsn-34m']);
@@ -230,7 +231,7 @@ function debrief() {
   if (!ruined.length && !unsent.length) badges.push('Clean signal');
   if (ul.solved && ul.tries === 1 && !ul.hint) badges.push('Codebreaker');
   if (got / maxValue >= 0.8) badges.push('Data hero');
-  saveMission(wid, 'comms', { score });
+  saveMission(wid, 'comms', { score, got: Math.round(got), maxValue, sent: chosen().length, total: PACKETS.length, ruined: ruined.length, decoded: ul.solved ? ul.word : null, comp: compC.name, check: check().name });
   const award = awardRun({ mission: 'comms', world: wid, score, badges, summary: `${Math.round(got)}/${maxValue} science, decoded ${ul.solved ? ul.word : 'no'}`,
     decisions: [compC.name, check().name, `Sent ${chosen().length} of ${PACKETS.length} packets`] });
   celebrate(award); if (score >= 65) sfx.good(); else sfx.bad();
@@ -242,7 +243,7 @@ function debrief() {
     <div>${items.map(([l, m, p, w], n) => `<div class="check rise" style="--i:${n}"><span class="tag ${p >= m * 0.8 ? 'good' : p >= m * 0.4 ? 'warn' : 'bad'}">${p}/${m}</span><div><b>${l}</b><div class="small muted">${w}</div></div></div>`).join('')}</div>
     <h2>Why it went this way</h2><ul>${lessons.map((l) => `<li>${l}</li>`).join('')}</ul>
     <div class="panel" style="background:var(--panel-2)"><h2>Campaign total: ${total} / 300</h2><p>Orbit, rover and comms together. Every mission’s choices shaped the next one.</p></div>
-    <div class="row"><a href="../../hub.html"><button class="primary big">Back to mission control</button></a><button id="again">Send again</button></div></section>`;
+    <div class="row"><a href="../../summary.html"><button class="primary big">See the campaign summary</button></a><a href="../../hub.html"><button>Back to mission control</button></a><button id="again">Send again</button></div></section>`;
   $('#side').innerHTML = whiskers(['Real missions do this every day: NASA’s Deep Space Network talks to dozens of spacecraft, from the Moon to beyond the planets.']);
   $('#again').onclick = (e) => { e.stopPropagation(); S.ul = null; go(1); };
 }

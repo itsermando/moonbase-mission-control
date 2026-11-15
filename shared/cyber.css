@@ -172,3 +172,9 @@ button:disabled { opacity: .45; cursor: not-allowed; filter: grayscale(.6); }
 
 /* keep the HUD on one row on laptop-width screens once the campaign score gets wider */
 @media (min-width: 901px) and (max-width: 1360px) { .shell { gap: 8px; padding-inline: 10px; } .shell .track .link { width: 8px; } .shell .icon { padding-inline: 8px; } .shell .node { padding-inline: 10px 12px; } }
+
+/* Readable choice cards everywhere: the title stays in the display face, descriptions read as normal sentences. */
+button.card, button.choice, .card, .choice { text-transform: none; letter-spacing: .01em; font-family: var(--font); font-size: 15px; font-weight: 500; color: var(--text); }
+button.card b, button.choice b, .card h3, .choice > b { font-family: var(--display); text-transform: uppercase; letter-spacing: .08em; font-size: 13px; color: var(--accent); }
+button.card .small, button.choice .small, .card p, .choice .muted { color: var(--muted); font-size: 14px; line-height: 1.4; }
+button.choice .nums, button.card .nums { font-family: var(--mono); font-size: 13px; letter-spacing: .02em; color: var(--text); }

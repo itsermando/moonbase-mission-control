@@ -17,7 +17,7 @@ test('every model in the registry has a valid .glb file', () => {
 });
 
 test('the Satellite Kit parts used by the spacecraft screen exist', () => {
-  const files = [...src('../missions/orbit/ui.js').matchAll(/'(kit-[a-z]+-\d)'/g)].map((m) => m[1]);
+  const files = [...src('../missions/orbit/bay.js').matchAll(/'(kit-[a-z]+-\d)'/g)].map((m) => m[1]);
   assert.ok(files.length >= 5);
   for (const f of new Set(files)) assert.ok(fs.existsSync(new URL(`${f}.glb`, dir)), f);
 });

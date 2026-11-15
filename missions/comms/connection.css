@@ -619,7 +619,7 @@ nav span.done {
             rgba(5, 12, 27, 0.65),
             rgba(5, 12, 27, 0.90)
         ),
-        url("/docs/screens/dsn_background.png");
+        url("../../docs/screens/dsn_background.png");
 
     background-size: cover;
     background-position: center;

@@ -1,4 +1,14 @@
 // Rover mission screens: Briefing, Landing site, Build, Test. Deploy and Debrief live in deploy.js / debrief.js.
+import { info } from '../../shared/explain.js';
+const SLOT_TIPS = {
+  mobility: 'How the rover moves. Steeper ground needs better wheels or legs, which weigh more and use more power.',
+  power: 'Where the electricity comes from. Solar panels need sunlight (rare at the pole); an RTG works in the dark but is heavy and expensive.',
+  digger: 'The excavator. A bigger digger collects faster but drains the battery and adds mass.',
+  thermal: 'Keeps the electronics warm. Shadowed craters drop below −200 °C; heaters cost power.',
+  comms: 'The rover’s radio. It can only talk to Earth through your Mission 1 relay satellite, during contact windows.',
+  science: 'Instruments that find ice before you dig, so you don’t waste battery digging dry soil.',
+  extra: 'One special tool, such as a tether for steep crater walls. Pick the one your objective needs.',
+};
 import { LIMITS, objectivesFor, findObjective, scaledObjective, SLOTS, PARTS, summarize, defaultDesign, BUS } from './parts.js';
 import { cells, SLOPE_TEXT, SOURCE_NOTE, useWorld, sunAt, WORLD_ID, relayInfo } from './world.js';
 import { mountShell } from '../../shared/shell.js';
@@ -202,7 +212,7 @@ function build() {
   main().innerHTML = `<section class="panel stack"><div><h1>Build your rover</h1>
     <p>Every part costs mass, money and power. There is no single right answer, only trade-offs.</p>
     <p class="small muted">Always included: ${BUS.name} (${BUS.massKg} kg, $${BUS.costM}M).</p></div>
-    ${SLOTS.map((slot) => `<fieldset class="slot" data-slot="${slot.id}"><legend class="row"><h2 style="margin:0">${slot.label}</h2>
+    ${SLOTS.map((slot) => `<fieldset class="slot" data-slot="${slot.id}"><legend class="row"><h2 style="margin:0">${slot.label}${info(SLOT_TIPS[slot.id])}</h2>
       ${S.players > 1 ? `<span class="tag accent">${slot.role}</span>` : ''}</legend>
       <div class="pgrid" id="slot-${slot.id}">${partCards(slot)}</div></fieldset>`).join('')}
     <div class="row"><button id="back">Back</button><button class="primary big" id="next">Run test campaign ($${LIMITS.testCostM}M)</button></div></section>`;

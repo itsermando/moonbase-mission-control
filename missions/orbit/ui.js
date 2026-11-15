@@ -13,18 +13,23 @@ import * as A from './advisor.js';
 import { treeHTML } from '../../shared/tree.js';
 import { aiNote } from '../../shared/llm.js';
 import { mountViewer } from '../../shared/models.js';
+import * as B from './bay.js';
+import { findInstrument, instrumentSpecs } from './instruments.js';
+import { renderMatrix } from '../../shared/matrix.js';
+import { matrixSpec, debriefTree } from './report.js';
+import { info } from '../../shared/explain.js';
+import { registerOrbitTutorial } from './tutorial-steps.js';
 
 const $ = (s) => document.querySelector(s);
 const world = getWorld(), wid = getWorldId();
 const STAGES = ['Briefing', 'Spacecraft', 'Orbit design', 'Capture burn', 'Operations', 'Debrief'];
-const S = { layer: 'imagery', stage: 0, rocket: 'medium', antenna: 'dish', power: 'solarL', p: { ...D.PRESETS[wid][1].p }, preset: 1, view: '3d',
+const S = { profile: 'relay', instrument: 'none', shield: 'standard', layer: 'imagery', stage: 0, rocket: 'medium', antenna: 'dish', power: 'solarL', p: { ...D.PRESETS[wid][1].p }, preset: 1, view: '3d',
   dv: null, fuelFactor: 1, result: null, retries: 0, err: 0 };
 let globe = null, timer = null, gen = 0, mvs = [];
 const killMv = () => { mvs.forEach((v) => v.dispose()); mvs = []; };
 // Real NASA models for each choice (shared/models.js). The satellite is assembled from NASA's Satellite Kit parts.
 const REAL_ORBITER = { moon: 'lro', mars: 'mro', mercury: 'messenger', ceres: 'dawn', vesta: 'dawn' };
 const ROCKET_MODEL = { small: 'jupiter-c', medium: 'atlas', heavy: 'saturn-v' };
-const KIT = { antenna: { patch: 'kit-radio-1', dish: 'kit-radio-2', big: 'kit-radio-3' }, power: { solarS: 'kit-wings-1', solarL: 'kit-wings-3' } };
 
 mountShell({ base: '../../', mission: 'orbit', shortcuts: [['1–3', 'Load a real-mission orbit (design stage)'], ['G', 'Switch 3D view / ground track'], ['Space', 'Pause or play operations']] });
 
@@ -35,8 +40,9 @@ const pct = (x) => `${fmt(x * 100, 1)}%`;
 const toGlobe = (p) => [p[0] / world.radiusKm, p[2] / world.radiusKm, -p[1] / world.radiusKm];
 
 function design(p = S.p) {
-  return P.designMetrics({ rocket: S.rocket, antenna: S.antenna, power: S.power, p }, world, wid);
+  return P.designMetrics({ rocket: S.rocket, antenna: S.antenna, power: S.power, instrument: S.instrument, shield: S.shield, p }, world, wid);
 }
+const science = (d) => (d.ins.kind === 'none' ? null : instrumentSpecs(d.ins, d.el, world, { antennaRate: d.an.rate }));
 const timeline = (el) => O.contactTimeline(el, world, { hours: 72 });
 
 function checks(d, t) {
@@ -50,6 +56,9 @@ function checks(d, t) {
   add(Math.max(S.p.periAltKm, S.p.apoAltKm) <= L.maxApo, false, 'Apoapsis limit', `${fmt(Math.max(S.p.periAltKm, S.p.apoAltKm))} ≤ ${fmt(L.maxApo)} km`, 'Higher than this, the Sun’s and planets’ pull make the orbit unstable.');
   add(t.coverage >= D.GOALS[wid], true, 'Contact goal', `${pct(t.coverage)} ≥ ${pct(D.GOALS[wid])}`, 'Share of time the base can talk through you.');
   add(t.avgWindowH >= 0.5, true, 'Contact length', hrs(t.avgWindowH), 'Short passes leave the rover little time to talk.');
+  const sp = science(d);
+  if (sp) add(sp.goalMet, true, 'Science detail', `${B.sizeText(sp.gsdM)} ≤ ${B.sizeText(sp.goalGsdM)}`, 'Pixel size at the lowest point must be as small as the science job needs.');
+  if (sp) add(sp.latReach >= Math.abs(world.site.latDeg), true, 'Sees the base', `${fmt(sp.latReach)}° ≥ ${fmt(Math.abs(world.site.latDeg))}°`, 'The orbit must tilt enough for the instrument to see the landing site.');
   return c;
 }
 
@@ -81,10 +90,14 @@ const viewBoxes = () => `<div class="globe-box" id="globe" ${S.view === '3d' ? '
 
 /* ---------- 1 Briefing ---------- */
 function briefing() {
+  const goal = pct(D.GOALS[wid]);
   $('#main').innerHTML = `<section class="panel stack hero"><span class="tag accent">Mission 1 of 3 · ${world.name}</span>
     <h1 class="big-title">Place the relay satellite</h1>
-    <p class="lead">Your rover will land at <b>${world.site.name}</b>. From there it often can’t see Earth, so a relay satellite must pass its messages on.
-    Design the orbit like a real flight-dynamics team: keep the base in contact at least <b>${pct(D.GOALS[wid])}</b> of the time, within <b>$${D.BUDGET_M}M</b>, then brake into that orbit with exactly the right burn.</p>
+    <p class="lead">Your rover will land at <b>${world.site.name}</b>. From there Earth sits low on the horizon or below it, so the rover can’t call home directly.
+    A <b>relay satellite</b> must carry its messages. You design it like a real flight-dynamics team: keep the base in contact at least <b>${goal}</b> of the time, within <b>$${D.BUDGET_M}M</b>, then brake into orbit with exactly the right burn.</p>
+    <h2>Step 1 · What is your satellite for?${info('Choose the satellite’s job. Every option is a relay; two also carry a real NASA-style science instrument, which makes the design harder but more valuable.')}</h2>
+    ${B.profileCardsHTML(S.profile, wid)}
+    <div id="brieftree">${B.briefTree(world, wid, S.profile)}</div>
     <div class="statgrid">
       <div class="stat"><div class="lbl">Gravity parameter GM</div><div class="val">${fmt(world.gm, world.gm < 100 ? 2 : 0)} km³/s²</div></div>
       <div class="stat"><div class="lbl">Radius</div><div class="val">${fmt(world.radiusKm, 1)} km</div></div>
@@ -92,37 +105,63 @@ function briefing() {
       <div class="stat"><div class="lbl">Arrival speed v∞</div><div class="val">${fmt(world.vInfKms, 1)} km/s</div></div>
     </div>
     <p class="small muted">Constants from NASA/JPL. Globe and map: ${world.source}.</p>
-    <div class="row"><button class="primary big" id="next">Configure the spacecraft</button></div></section>`;
-  $('#side').innerHTML = whiskers(['Every choice has a cost: a bigger antenna sends more data but needs more power, mass and fuel.', 'Your orbit decides when the rover can call Earth in Mission 2.']);
+    <div class="row"><button class="primary big" id="next">Build the satellite</button></div></section>`;
+  $('#side').innerHTML = whiskers(['Start by choosing the satellite’s job. Hover or tap anything with a dotted line or an <b>i</b> to see what it means.', 'Your orbit decides when the rover can call Earth in Mission 2.']);
   $('#side').insertAdjacentHTML('beforeend', '<section class="panel" id="mv-real"></section>');
   mvs.push(mountViewer($('#mv-real'), [REAL_ORBITER[wid], 'tdrs'], { title: 'Real NASA spacecraft like yours', height: 210 }));
-  $('#next').onclick = (e) => { e.stopPropagation(); sfx.click(); go(1); };
+  $('#main').onclick = (e) => {
+    const pb = e.target.closest('[data-profile]');
+    if (pb) {
+      S.profile = pb.dataset.profile; S.instrument = B.insForProfile(S.profile, wid); sfx.select();
+      document.querySelectorAll('[data-profile]').forEach((b) => { const on = b === pb; b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on)); });
+      $('#brieftree').innerHTML = B.briefTree(world, wid, S.profile);
+      return;
+    }
+    if (e.target.closest('#next')) { sfx.click(); go(1); }
+  };
 }
 
-/* ---------- 2 Spacecraft ---------- */
-const cards = (list, key, extra) => `<div class="choice-grid">${list.map((x) => `<button class="choice ${S[key] === x.id ? 'on' : ''}" data-k="${key}" data-val="${x.id}">
-  <b>${x.name}</b><span class="small muted">${x.info}</span><span class="nums">${extra(x)}</span></button>`).join('')}</div>`;
+/* ---------- 2 Spacecraft: assembly bay ---------- */
 function spacecraft() {
   killMv();
-  const d = design();
-  $('#main').innerHTML = `<section class="panel stack"><h1>Configure the spacecraft</h1>
-    <h2>Launch vehicle</h2>${cards(D.ROCKETS, 'rocket', (x) => `${fmt(x.capKg * D.PAYLOAD_FACTOR[wid])} kg to ${world.name} · $${x.costM}M`)}
-    <h2>Antenna</h2>${cards(D.ANTENNAS, 'antenna', (x) => `${x.massKg} kg · $${x.costM}M · ${x.powerW} W · data ×${x.rate}`)}
-    <h2>Power</h2>${cards(D.POWER, 'power', (x) => `${x.massKg} kg · $${x.costM}M · ${x.powerW} W`)}
-    <p class="small muted">Always included: ${D.BUS.name} (${D.BUS.massKg} kg, $${D.BUS.costM}M, ${D.BUS.powerW} W). Fuel is sized later from your orbit.</p>
+  const d = design(), insList = B.instrumentList(wid), prof = B.profileOf(S.profile);
+  $('#main').innerHTML = `<section class="panel stack"><div class="row" style="justify-content:space-between"><h1 style="margin:0">Assembly bay</h1><span class="tag accent" id="proftag">${prof.icon} ${prof.name}</span></div>
+    <div class="bay"><div id="bay3d" class="bay3d"></div>
+      <div class="bay-side"><h2>What each choice causes${info('Every part changes mass, power and cost. Mass needs fuel, and fuel needs a rocket that can lift it all. Watch the chains update as you click.')}</h2>
+      <div id="chains">${B.chainsHTML(d)}</div>${B.deltaHTML(null, d)}</div></div>
+    ${B.choiceSection('Launch vehicle', 'rocket', D.ROCKETS, 'rocket', S.rocket, (x) => `${fmt(x.capKg * D.PAYLOAD_FACTOR[wid])} kg to ${world.name} · $${x.costM}M`)}
+    ${B.choiceSection('Antenna', 'antenna', D.ANTENNAS, 'antenna', S.antenna, (x) => `${x.massKg} kg · $${x.costM}M · ${x.powerW} W · data ×${x.rate}`)}
+    ${B.choiceSection('Solar power', 'power', D.POWER, 'power', S.power, (x) => `${x.massKg} kg · $${x.costM}M · makes ${x.powerW} W`)}
+    ${B.choiceSection('Science instrument', 'instrument', insList, 'instrument', S.instrument, (x) => (x.kind === 'none' ? '0 kg · $0M · 0 W' : `${x.massKg} kg · $${x.costM}M · ${x.powerW} W`), (x) => `${x.info}${x.kind !== 'none' ? ` Modelled on ${x.ref}.` : ''}`)}
+    ${B.choiceSection('Radiation shielding', 'shield', D.SHIELDS, 'shield', S.shield, (x) => `${x.massKg} kg · ${x.costM < 0 ? '−' : ''}$${Math.abs(x.costM)}M · storm reset ${Math.round(x.hit * 100)}%`)}
+    <p class="small muted">Always included: ${D.BUS.name} (${D.BUS.massKg} kg, $${D.BUS.costM}M, ${D.BUS.powerW} W). Fuel is sized from your orbit in the next step.</p>
     <div class="row"><button id="back">Back</button><button class="primary big" id="next">Design the orbit</button></div></section>`;
-  $('#side').innerHTML = `<section class="panel"><h3>Spacecraft</h3><table class="readout">
-    <tr><td>Dry mass</td><td>${fmt(d.dry)} kg</td></tr><tr><td>Rocket capacity</td><td>${fmt(d.cap)} kg</td></tr>
-    <tr><td>Cost</td><td>$${d.cost}M / $${D.BUDGET_M}M</td></tr><tr><td>Power</td><td>${d.haveW} W for ${d.needW} W</td></tr></table></section>`
-    + whiskers([d.needW > d.haveW ? `The antenna needs ${d.needW} W but the wings give ${d.haveW} W.` : 'A bigger dish gives Mission 3 more time to send the rover’s science home.']);
-  const ant = D.ANTENNAS.find((x) => x.id === S.antenna), pw = D.POWER.find((x) => x.id === S.power), rk = D.ROCKETS.find((x) => x.id === S.rocket);
-  $('#side').insertAdjacentHTML('beforeend', '<section class="panel" id="mv-sat"></section><section class="panel" id="mv-rk"></section>');
-  mvs.push(mountViewer($('#mv-sat'), [{ key: 'sat', files: ['kit-body-2', KIT.antenna[S.antenna], KIT.power[S.power]], name: 'Your relay satellite', kind: 'NASA Satellite Kit',
-    fact: `${ant.name} and ${pw.name.toLowerCase()} on the standard bus. Changing a choice changes the model.` }], { title: 'Your spacecraft', height: 200 }));
-  mvs.push(mountViewer($('#mv-rk'), [ROCKET_MODEL[S.rocket]], { title: rk.name, height: 220 }));
+  const sideHTML = (dd) => whiskers([dd.needW > dd.haveW ? `The parts need ${dd.needW} W but the wings make ${dd.haveW} W: pick larger wings or a smaller antenna.`
+    : dd.wet > dd.cap ? `Too heavy: ${fmt(dd.wet)} kg on a rocket that lifts ${fmt(dd.cap)} kg.` : dd.cost > D.BUDGET_M ? `Over budget by $${dd.cost - D.BUDGET_M}M.`
+      : dd.ins.kind !== 'none' ? `The ${dd.ins.name.toLowerCase()} wants a LOW orbit; the relay wants a HIGH one. You’ll balance that next.` : 'A bigger dish gives Mission 3 more time to send the rover’s science home.']);
+  $('#side').innerHTML = `<div id="sc-tips">${sideHTML(d)}</div><section class="panel" id="mv-rk"></section>`;
+  const satEntry = () => ({ key: 'sat', files: B.satFiles(S), name: 'Your relay satellite', kind: 'NASA Satellite Kit',
+    fact: `${D.ANTENNAS.find((x) => x.id === S.antenna).name}, ${D.POWER.find((x) => x.id === S.power).name.toLowerCase()}, ${D.SHIELDS.find((x) => x.id === S.shield).name.toLowerCase()}${S.instrument !== 'none' ? `, ${findInstrument(wid, S.instrument).name.toLowerCase()}` : ''}. Every choice changes the model.` });
+  const bay = mountViewer($('#bay3d'), [satEntry()], { height: 300 }); mvs.push(bay);
+  const rk = mountViewer($('#mv-rk'), D.ROCKETS.map((r) => ROCKET_MODEL[r.id]), { title: 'Launch vehicles (real NASA rockets)', height: 220 }); mvs.push(rk);
+  rk.select(ROCKET_MODEL[S.rocket]);
   $('#main').onclick = (e) => {
     const b = e.target.closest('button'); if (!b) return;
-    if (b.dataset.k) { S[b.dataset.k] = b.dataset.val; sfx.select(); spacecraft(); }
+    if (b.dataset.k) {
+      const prev = design(); S[b.dataset.k] = b.dataset.val; sfx.select();
+      if (b.dataset.k === 'instrument') {
+        S.profile = S.instrument === 'none' ? 'relay' : (Object.entries(D.PROFILE_INS).find(([, m]) => m[wid] === S.instrument)?.[0] || S.profile);
+        const pf = B.profileOf(S.profile); $('#proftag').textContent = `${pf.icon} ${pf.name}`;
+      }
+      const nd = design();
+      document.querySelectorAll(`[data-k="${b.dataset.k}"]`).forEach((x) => { const on = x === b; x.classList.toggle('on', on); x.setAttribute('aria-pressed', String(on)); });
+      $('#chains').innerHTML = B.chainsHTML(nd);
+      $('#delta').outerHTML = B.deltaHTML(prev, nd, b.querySelector('b').textContent);
+      $('#chains').querySelectorAll('.cc-box').forEach((x) => x.classList.add('flash'));
+      $('#sc-tips').innerHTML = sideHTML(nd);
+      if (b.dataset.k === 'rocket') rk.select(ROCKET_MODEL[S.rocket]); else bay.update('sat', satEntry());
+      return;
+    }
     if (b.id === 'back') go(0);
     if (b.id === 'next') { sfx.click(); go(2); }
   };
@@ -142,7 +181,7 @@ function orbitDesign() {
     <p class="small muted" id="like">${S.preset != null ? `${D.PRESETS[wid][S.preset].name}: ${D.PRESETS[wid][S.preset].like}` : 'Custom orbit'}</p>
     <div id="analyst"><p class="small muted">The mission analyst is calculating designs…</p></div>
     ${viewBoxes()}
-    <div class="elements">${FIELDS.map(([k, label, unit, range, step]) => { const [lo, hi] = range(L); return `<label class="el-row"><span>${label}</span>
+    <div class="elements">${FIELDS.map(([k, label, unit, range, step]) => { const [lo, hi] = range(L); return `<label class="el-row"><span data-no-tip>${label}${info(D.TIPS[k])}</span>
       <input type="range" data-f="${k}" min="${lo}" max="${hi}" step="${step}" value="${S.p[k]}">
       <input type="number" data-n="${k}" min="${lo}" max="${hi}" step="${step}" value="${S.p[k]}"><em>${unit}</em></label>`; }).join('')}</div>
     <p class="small muted">ω = 90° puts the apoapsis over the south pole, 270° over the north pole. Satellites move slowest at apoapsis (Kepler’s 2nd law).</p>
@@ -150,7 +189,7 @@ function orbitDesign() {
   if (S.view === '3d') makeGlobe($('#globe')).then((g) => { if (g) { globe = g; update(); } });
   const update = () => {
     if (S.stage !== 2) return;
-    const d = design(), t = timeline(d.el), ch = checks(d, t), nogo = ch.some((c) => c.s === 'nogo');
+    const d = design(), t = timeline(d.el), ch = checks(d, t), nogo = ch.some((c) => c.s === 'nogo'), sp = science(d);
     if (globe) {
       globe.setPlannerOrbit(O.orbitPath(d.el).map(toGlobe), toGlobe(O.periapsisPos(d.el)), toGlobe(O.apoapsisPos(d.el)));
       globe.frame(Math.max(3.2, (d.el.ra / world.radiusKm) * 2.4));
@@ -159,13 +198,15 @@ function orbitDesign() {
     if (S.view === 'gt') drawGroundTrack($('#gt'), world, O.groundTrack(d.el, world, { hours: 72 }));
     const v = O.visViva;
     $('#side').innerHTML = `<section class="panel"><h3>Orbit parameters</h3><table class="readout">
-      <tr><td>Semi-major axis a</td><td>${fmt(d.el.a)} km</td></tr><tr><td>Eccentricity e</td><td>${fmt(d.el.e, 4)}</td></tr>
-      <tr><td>Period T</td><td>${hrs(d.el.T / 3600)}</td></tr>
-      <tr><td>Speed at Pe / Ap</td><td>${fmt(v(d.el.rp, d.el.a, world.gm), 3)} / ${fmt(v(d.el.ra, d.el.a, world.gm), 3)} km/s</td></tr>
-      <tr><td>Brake burn Δv</td><td>${fmt(d.dvNeed * 1000)} m/s</td></tr><tr><td>Fuel (+10% margin)</td><td>${fmt(d.prop)} kg</td></tr>
-      <tr><td>Contact with base</td><td>${pct(t.coverage)}</td></tr><tr><td>Mean contact / longest gap</td><td>${hrs(t.avgWindowH)} / ${hrs(t.maxGapH)}</td></tr></table></section>
-      <section class="panel"><h3>Go / no-go</h3>${ch.map((c) => `<div class="gng ${c.s}" title="${c.why}"><span>${c.s === 'go' ? 'GO' : c.s === 'warn' ? 'WARN' : 'NO-GO'}</span><b>${c.label}</b><em>${c.val}</em></div>`).join('')}</section>`
-      + whiskers(orbitTips(d, t));
+      <tr><td data-tip="${D.TIPS.a}">Semi-major axis a</td><td>${fmt(d.el.a)} km</td></tr><tr><td data-tip="${D.TIPS.e}">Eccentricity e</td><td>${fmt(d.el.e, 4)}</td></tr>
+      <tr><td data-tip="${D.TIPS.T}">Period T</td><td>${hrs(d.el.T / 3600)}</td></tr>
+      <tr><td data-tip="${D.TIPS.speed}">Speed at Pe / Ap</td><td>${fmt(v(d.el.rp, d.el.a, world.gm), 3)} / ${fmt(v(d.el.ra, d.el.a, world.gm), 3)} km/s</td></tr>
+      <tr><td data-tip="${D.TIPS.dv}">Brake burn Δv</td><td>${fmt(d.dvNeed * 1000)} m/s</td></tr><tr><td data-tip="${D.TIPS.fuel}">Fuel (+10% margin)</td><td>${fmt(d.prop)} kg</td></tr>
+      <tr><td data-tip="${D.TIPS.coverage}">Contact with base</td><td>${pct(t.coverage)}</td></tr><tr><td data-tip="${D.TIPS.window}">Mean contact / longest gap</td><td>${hrs(t.avgWindowH)} / ${hrs(t.maxGapH)}</td></tr></table></section>
+      ${B.scienceHTML(d.ins, sp)}
+      <section class="panel"><h3>Go / no-go</h3>${ch.map((c) => `<div class="gng ${c.s}" data-tip="${c.why}"><span>${c.s === 'go' ? 'GO' : c.s === 'warn' ? 'WARN' : 'NO-GO'}</span><b>${c.label}</b><em>${c.val}</em></div>`).join('')}</section>`
+      + whiskers(orbitTips(d, t, sp));
+    if (sp) B.paintCamera($('#camview'), `../../${world.texture}`, sp.gsdM / sp.goalGsdM);
     $('#next').disabled = nogo;
   };
   let deb = null;
@@ -202,7 +243,7 @@ function orbitDesign() {
   update();
   setTimeout(() => { // the search takes a moment the first time, so let the console appear first
     if (S.stage !== 2 || !$('#analyst')) return;
-    const { choices, relaxed } = A.designChoices(world, wid);
+    const { choices, relaxed } = A.designChoices(world, wid, { instrument: S.instrument, shield: S.shield });
     S.analyst = choices;
     if (!choices.length) { $('#analyst').innerHTML = ''; return; }
     const opts = choices.map((c) => ({ id: c.id, title: c.title, recommended: c.recommended, summary: c.summary, branches: c.branches, button: 'Load this design',
@@ -217,8 +258,10 @@ function orbitDesign() {
     'Pe and Ap mark the lowest and highest points. Satellites crawl at Ap, so put it above the base. The green cone is the sky the base can see.',
     'Every check on the Go / no-go board must be GO (or WARN) before the burn.']);
 }
-function orbitTips(d, t) {
+function orbitTips(d, t, sp) {
   const tips = [];
+  if (sp && !sp.goalMet) tips.push(`The ${d.ins.name.toLowerCase()} sees ${B.sizeText(sp.gsdM)} pixels but needs ${B.sizeText(sp.goalGsdM)}: lower the periapsis. That is the trade-off: a low orbit means shorter relay passes.`);
+  if (sp && sp.latReach < Math.abs(world.site.latDeg)) tips.push(`The instrument only reaches ${fmt(sp.latReach)}° latitude, but the base is at ${fmt(Math.abs(world.site.latDeg), 1)}°: raise the inclination toward 90°.`);
   if (t.coverage < D.GOALS[wid]) tips.push(`Contact is ${pct(t.coverage)}; the goal is ${pct(D.GOALS[wid])}. Try ω = ${world.site.latDeg < 0 ? 90 : 270}° to put the apoapsis over the base, and a higher apoapsis.`);
   if (d.dvNeed > 1.5) tips.push(`A ${fmt(d.dvNeed * 1000)} m/s brake is big. Fuel grows exponentially with Δv (the rocket equation).`);
   if (d.wet > d.cap) tips.push('Too heavy for the rocket. A lower orbit needs a bigger brake, which means more fuel.');
@@ -287,7 +330,7 @@ function captureBurn() {
 /* ---------- 5 Operations: watch 72 hours ---------- */
 function operations() {
   const p = { ...S.p, ...S.result }, el = O.elements(p, world), t = timeline(el), track = O.groundTrack(el, world, { hours: 72 });
-  if (!S.keepOps || !S.ops) S.ops = { h: 0, speed: 3, playing: true, ev: { h: 20 + Math.random() * 30, state: 'pending', hit: Math.random() < D.STORM.hitChance, durH: 0 } };
+  if (!S.keepOps || !S.ops) S.ops = { h: 0, speed: 3, playing: true, ev: { h: 20 + Math.random() * 30, state: 'pending', hit: Math.random() < design().sh.hit, durH: 0 } };
   S.keepOps = false;
   const ops = S.ops, ev = ops.ev;
   let te = t; // timeline after any outage
@@ -316,7 +359,7 @@ function operations() {
     + whiskers(['Green on the timeline = the base can talk to Earth through you. Red = an outage. The rover in Mission 2 gets these windows.']);
   const showEvent = () => {
     sfx.alarm(); $('#pp').disabled = true;
-    const f = A.stormForecast(t, ev.h, design(), wid, { err: S.err, retries: S.retries });
+    const f = A.stormForecast(t, ev.h, design(), wid, { err: S.err, retries: S.retries, science: science(design()) });
     $('#evbox').innerHTML = `<section class="event-box" role="alert"><span class="tag warn">Event · T+${fmt(ev.h, 1)} h</span>
       <h3>Solar storm warning</h3>
       <p>A burst of charged particles from the Sun will reach ${world.name} within the hour. Radiation can reset a satellite’s computer, and a reset takes ground control a long time to fix. The analyst has already calculated what each order would cost on <em>your</em> orbit.</p>
@@ -389,10 +432,10 @@ function debrief() {
     $('#again').onclick = (e) => { e.stopPropagation(); S.result = null; S.dv = null; S.fuelFactor = 1; S.retries = 0; go(3); };
     return;
   }
-  const { p, t: nominal, te, event } = S.final, t = te || nominal, left = D.BUDGET_M - d.cost, margin = d.cap - d.wet;
+  const { p, el, t: nominal, te, event } = S.final, t = te || nominal, sp = science({ ...d, el }), left = D.BUDGET_M - d.cost, margin = d.cap - d.wet;
   const why = [`${pct(t.coverage)} of the time (goal ${pct(D.GOALS[wid])}).`, `Mean contact ${hrs(t.avgWindowH)}, longest gap ${hrs(t.maxGapH)}.`,
-    `Apoapsis ${fmt(S.err * 100, 1)}% off the plan${S.retries ? ', after one fly-by' : ''}.`, `${d.an.name}: data ×${d.an.rate}.`, `$${left}M left.`, `${fmt(margin)} kg spare on the rocket.`];
-  const parts = P.scoreParts(d, t, { err: S.err, retries: S.retries }, wid);
+    `Apoapsis ${fmt(S.err * 100, 1)}% off the plan${S.retries ? ', after one fly-by' : ''}.`, sp ? `${d.ins.name}: ${B.sizeText(sp.gsdM)} pixels (goal ${B.sizeText(sp.goalGsdM)}), ${fmt(sp.returnFraction * 100)}% of its data sent home.` : `${d.an.name}: data ×${d.an.rate}.`, `$${left}M left.`, `${fmt(margin)} kg spare on the rocket.`];
+  const parts = P.scoreParts(d, t, { err: S.err, retries: S.retries, science: sp }, wid);
   const items = parts.map((x, n) => [x.label, x.max, x.score, why[n]]);
   const score = P.totalScore(parts);
   const badges = [];
@@ -400,6 +443,7 @@ function debrief() {
   if (t.coverage >= 0.8) badges.push('Always in touch');
   if (left >= 50) badges.push('Thrifty engineer');
   if (S.preset != null) badges.push('Real-mission twin');
+  if (sp?.goalMet && t.coverage >= D.GOALS[wid]) badges.push('Science and relay');
   const lessons = [];
   if (t.coverage < D.GOALS[wid]) lessons.push('Satellites move slowest at apoapsis (Kepler’s second law). Put it over the base with ω, and raise it, to stay in touch longer.');
   if (S.err >= 0.02) lessons.push('Vis-viva links speed and orbit size: a few metres per second of brake change the apoapsis by hundreds of kilometres. That is why real burns are planned to the metre per second.');
@@ -408,25 +452,32 @@ function debrief() {
   if (event?.choice === 'safe') lessons.push(`In the solar storm you chose safe mode: ${event.lostH > 0 ? `${fmt(event.lostH, 1)} h of contact lost` : 'no contact was due'}, but no risk. Operators often accept a small known loss to avoid a big unknown one.`);
   if (event?.hit) lessons.push(`You kept transmitting and the storm reset the computer: ${event.durH} h of outage, longer than safe mode would have cost. A choice that works most of the time can still be the worse choice. That is risk management.`);
   if (event?.choice === 'ride' && !event.hit) lessons.push('You kept transmitting through the storm and got away with it. Next time, ask what a reset would cost, not only how likely it is.');
+  if (sp && !sp.goalMet) lessons.push(`Your ${d.ins.name.toLowerCase()} needed ${B.sizeText(sp.goalGsdM)} pixels but saw ${B.sizeText(sp.gsdM)}. Pixel size grows with height, so science wants a low orbit while a relay wants a high one: real teams often fly two satellites.`);
   if (!lessons.length) lessons.push('A mission-grade design. Could a smaller rocket or antenna still meet the goal? Engineers always look for margin.');
   // The rover keeps the orbit's regular schedule; only the overall coverage reflects the storm outage.
   const relay = { periodH: +nominal.cycleH.toFixed(2), windowH: +Math.min(nominal.avgWindowH, nominal.cycleH).toFixed(2), coverage: +t.coverage.toFixed(3), dataRate: d.an.rate, orbit: `${fmt(p.periAltKm)} × ${fmt(p.apoAltKm)} km` };
-  saveMission(wid, 'orbit', { score, relay });
+  saveMission(wid, 'orbit', { score, relay, profile: B.profileOf(S.profile).name, instrument: d.ins.kind === 'none' ? null : d.ins.name, gsdM: sp ? +sp.gsdM.toFixed(2) : null, goalMet: sp ? sp.goalMet : null, decisions: [d.rk.name, d.an.name, d.pw.name, d.sh.name, `Brake ${fmt(S.dv * 1000)} m/s`, event ? (event.choice === 'safe' ? 'Storm: safe mode' : 'Storm: kept transmitting') : null].filter(Boolean) });
   const award = awardRun({ mission: 'orbit', world: wid, score, summary: `${relay.orbit}, ${pct(t.coverage)} contact`, badges,
     decisions: [d.rk.name, d.an.name, d.pw.name, S.preset != null ? D.PRESETS[wid][S.preset].name : `i ${p.incDeg}°, ω ${p.argpDeg}°`, `Brake ${fmt(S.dv * 1000)} m/s`, event ? (event.choice === 'safe' ? 'Storm: safe mode' : 'Storm: kept transmitting') : null].filter(Boolean) });
   celebrate(award); if (score >= 65) sfx.good(); else sfx.bad();
+  const run = { d, t, p, err: S.err, retries: S.retries, dv: S.dv, event, sp, wid, world, periodH: el.T / 3600 };
   const stars = score >= 85 ? 3 : score >= 60 ? 2 : score >= 35 ? 1 : 0;
   $('#main').innerHTML = `<section class="panel stack"><div class="row" style="justify-content:space-between"><div><span class="tag ${score >= 65 ? 'good' : 'warn'}">${score >= 65 ? 'Relay online' : 'Relay weak'}</span>
     <div class="row" style="align-items:baseline"><div class="score">${score}</div><div class="muted">/ 100</div></div></div>
     <div class="stars">${[1, 2, 3].map((n) => `<span class="${n <= stars ? 'on' : ''}" style="--i:${n}">★</span>`).join('')}</div></div>
     <div>${items.map(([l, m, s, w], n) => `<div class="check rise" style="--i:${n}"><span class="tag ${s >= m * 0.8 ? 'good' : s >= m * 0.4 ? 'warn' : 'bad'}">${s}/${m}</span><div><b>${l}</b><div class="small muted">${w}</div></div></div>`).join('')}</div>
-    <h2>Why it went this way</h2><ul>${lessons.map((l) => `<li>${l}</li>`).join('')}</ul>
+    <div id="whytree">${debriefTree(run, score)}</div>
+    <div id="matrix"></div>
+    <h2>Lessons</h2><ul>${lessons.map((l) => `<li>${l}</li>`).join('')}</ul>
     <h2>Hand-off to Mission 2</h2><p>Your rover gets a relay contact of <b>${hrs(relay.windowH)}</b> about every <b>${hrs(relay.periodH)}</b>.</p>
     <div class="row"><a href="../rover/index.html"><button class="primary big">Next: Mission 2, the rover</button></a><button id="again">Redesign the orbit</button></div></section>`;
-  $('#side').innerHTML = whiskers(['Your relay schedule is saved. Mission 2 uses it for every call home.']);
+  renderMatrix($('#matrix'), matrixSpec(run));
+  $('#side').innerHTML = whiskers(['Your relay schedule is saved. Mission 2 uses it for every call home.', 'Tap a row in the table to see the formula behind it.']) + '<section class="panel" id="mv-final"></section>';
+  mvs.push(mountViewer($('#mv-final'), [{ key: 'sat', files: B.satFiles(S), name: 'Your satellite, in orbit', kind: relay.orbit, fact: `${pct(t.coverage)} contact with the base. ${sp ? `${d.ins.name}: ${B.sizeText(sp.gsdM)} pixels.` : 'Pure relay.'}` }], { title: 'The satellite you flew', height: 200 }));
   $('#again').onclick = (e) => { e.stopPropagation(); S.result = null; S.dv = null; go(2); };
 }
 
 function render() { stageBar(); [briefing, spacecraft, orbitDesign, captureBurn, operations, debrief][S.stage](); }
 render();
+registerOrbitTutorial(() => STAGES[S.stage]);
 void isClassMode;

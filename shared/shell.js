@@ -6,6 +6,7 @@ import { getWorld, getMission, isClassMode, campaignScore } from './campaign.js'
 import { MISSIONS } from './worlds.js';
 import { isMuted, setMuted, sfx, toast } from './fx.js';
 import { mountAsk } from './ask.js';
+import { initExplain } from './explain.js';
 import { getMode, setMode, isDegraded } from './perf.js';
 import { initMusic, isMusicOn, isPlaying, setMusic, setAudioBase, startMusic, stopMusic } from './music.js';
 
@@ -18,6 +19,7 @@ export function mountShell(o = {}) {
   let el = document.getElementById('shell');
   if (!el) { el = document.createElement('header'); el.id = 'shell'; document.body.prepend(el); }
   renderShell();
+  initExplain();
   setAudioBase(opts.base); initMusic();
   mountAsk({ mission: opts.mission || 'all', getWorld });
   window.addEventListener('quality-degraded', () => toast('This device looked busy, so graphics switched to Lite for smoother play. Change it under ? > Graphics.', 'info', 8000));

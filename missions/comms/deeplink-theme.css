@@ -1,0 +1,25 @@
+/* Operation Deep Link in the game's shared neon mission-control look (tokens match shared/cyber.css). */
+:root {
+  --bg: #04050c; --panel: rgba(9, 13, 28, .9); --edge: #2b3d6b; --blue: #00e5ff; --muted: #8fa3c8; --ink: #e6f1ff;
+  --accent: #00e5ff; --neon2: #ff2bd6; --good: #39ff9f; --warn: #ffb000; --bad: #ff3864; --text: #e6f1ff; --line-2: #2b3d6b;
+  --font: "Rajdhani", "Segoe UI", system-ui, sans-serif; --mono: "Share Tech Mono", ui-monospace, Consolas, monospace;
+}
+body {
+  font: 500 16px/1.5 var(--font); letter-spacing: .01em;
+  background:
+    radial-gradient(900px 500px at 85% -10%, rgba(255, 43, 214, .16), transparent 60%),
+    radial-gradient(900px 600px at -10% 10%, rgba(0, 229, 255, .12), transparent 60%),
+    linear-gradient(rgba(0, 229, 255, .045) 1px, transparent 1px) 0 0 / 44px 44px,
+    linear-gradient(90deg, rgba(0, 229, 255, .045) 1px, transparent 1px) 0 0 / 44px 44px, var(--bg);
+}
+.topbar { background: rgba(4, 6, 16, .92); border-bottom: 1px solid rgba(0, 229, 255, .35); box-shadow: 0 0 24px rgba(0, 229, 255, .12); }
+.brand a { color: var(--accent); text-decoration: none; font-family: var(--mono); }
+.brand strong, h1, h2, h3, #control-title { font-family: "Orbitron", var(--font); letter-spacing: .06em; text-transform: uppercase; }
+.brand strong { background: linear-gradient(90deg, #fff, var(--accent) 60%, var(--neon2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.capcom { border-color: rgba(255, 43, 214, .45) !important; background: linear-gradient(135deg, rgba(255, 43, 214, .1), rgba(0, 229, 255, .06)), var(--panel) !important; }
+.capcom h3 { color: var(--neon2); }
+.mission-card h3, .control-top strong { color: var(--accent); }
+.chips span, #progress-text, #status-line { font-family: var(--mono); }
+.mission-card, .controls, .capcom, .stage { clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px)); }
+button { font-family: "Orbitron", var(--font); letter-spacing: .08em; text-transform: uppercase; font-size: 12.5px; border-radius: 0 !important; }
+#control-body button:first-child, button.primary { background: var(--accent) !important; color: #031018 !important; border-color: var(--accent) !important; box-shadow: 0 0 18px rgba(0, 229, 255, .35); }

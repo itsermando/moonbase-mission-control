@@ -93,9 +93,11 @@ export const FORMULAS = {
 const rad = (deg) => (deg * Math.PI) / 180;
 
 /** Everything about one instrument flown on this orbit. `world` supplies radiusKm/gm; `el` is O.elements(...). */
-export function instrumentSpecs(ins, el, world, { antennaRate = 2 } = {}) {
+export function instrumentSpecs(ins, el, world, { antennaRate = 2, siteLatDeg = world.site?.latDeg } = {}) {
   if (!ins || ins.kind === 'none') return null;
-  const hPeri = Math.max(1, el.rp - world.radiusKm), hApo = Math.max(1, el.ra - world.radiusKm);
+  const hApo = Math.max(1, el.ra - world.radiusKm);
+  // Height where the satellite passes closest to the landing site: that is where the science happens.
+  const hPeri = siteLatDeg == null ? Math.max(1, el.rp - world.radiusKm) : Math.max(1, siteAltitudeKm(el, siteLatDeg) - world.radiusKm);
   const gsd = (h) => ins.ifovUrad * 1e-6 * h * 1000;                 // metres
   const swath = (h) => 2 * h * Math.tan(rad(ins.fovDeg) / 2);          // km
   const vPeri = Math.sqrt(world.gm * (2 / el.rp - 1 / el.a));           // km/s
@@ -115,6 +117,17 @@ export function instrumentSpecs(ins, el, world, { antennaRate = 2 } = {}) {
     goalGsdM: ins.goalGsdM, goalMet: gsdM <= ins.goalGsdM, producedGb, downGb, returnedGb: Math.min(producedGb, downGb), returnFraction: producedGb ? Math.min(1, downGb / producedGb) : 1,
     periodH: el.T / 3600,
   };
+}
+
+/** Orbit radius (km) where the ground track comes closest to latitude latDeg (lowest such point if several). */
+export function siteAltitudeKm(el, latDeg, n = 720) {
+  const pts = Array.from({ length: n }, (_, k) => {
+    const nu = (2 * Math.PI * k) / n, u = nu + el.w;
+    const lat = Math.asin(Math.max(-1, Math.min(1, Math.sin(u) * Math.sin(el.i)))) * 180 / Math.PI;
+    return { miss: Math.abs(lat - latDeg), r: (el.a * (1 - el.e ** 2)) / (1 + el.e * Math.cos(nu)) };
+  });
+  const least = Math.min(...pts.map((p) => p.miss));
+  return Math.min(...pts.filter((p) => p.miss <= least + 0.5).map((p) => p.r));
 }
 
 /** A human size: 0.5 m, 12 m, 1.4 km. */

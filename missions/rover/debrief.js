@@ -15,12 +15,10 @@ export function finishRun() {
   const r = S.run;
   S.result = E.debrief(r);
   S.badges = badges(r, S.result);
-  saveMission(WORLD_ID, 'rover', { score: S.result.score, data: { packets: E.dataPackets(r) } });
-  S.award = awardRun({
-    mission: 'rover', world: WORLD_ID, score: S.result.score, summary: `${r.objective.title}: ${E.gotText(r)}`,
-    badges: S.badges.filter((b) => b.got).map((b) => b.name),
-    decisions: [r.rover.mob.name, r.rover.parts.find((p) => p.batteryWh)?.name || '', r.rover.dig.name, r.rover.therm.name, r.rover.comm.name, r.rover.sci.name, r.rover.extra.name].filter(Boolean),
-  });
+  const decisions = [r.rover.mob.name, r.rover.parts.find((p) => p.batteryWh)?.name || '', r.rover.dig.name, r.rover.therm.name, r.rover.comm.name, r.rover.sci.name, r.rover.extra.name].filter(Boolean);
+  const summary = `${r.objective.title}: ${E.gotText(r)}`;
+  saveMission(WORLD_ID, 'rover', { score: S.result.score, data: { packets: E.dataPackets(r) }, summary, decisions, grade: S.result.grade });
+  S.award = awardRun({ mission: 'rover', world: WORLD_ID, score: S.result.score, summary, badges: S.badges.filter((b) => b.got).map((b) => b.name), decisions });
   leaveDeploy();
   go('debrief');
   if (S.result.grade === 'Mission success') sfx.good(); else sfx.bad();

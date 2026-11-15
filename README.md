@@ -8,7 +8,7 @@ A decision-based teaching game. Players design and fly a complete space mission 
 
 | # | Mission | You decide | Hands on to the next mission |
 |---|---|---|---|
-| 1 | **Orbit**: place the relay satellite | Rocket, antenna, solar power, orbit shape; a timed capture burn | Relay contact windows |
+| 1 | **Orbit**: place the relay satellite | The satellite's job (pure relay, relay + hazard camera, relay + ice hunter), rocket, antenna, solar power, science instrument, radiation shielding, orbit shape; a timed capture burn; a solar-storm decision | Relay contact windows |
 | 2 | **Rover**: land and dig (Moon) or core samples (Mars) | Landing site, 7 rover parts, every move | Science data packets |
 | 3 | **Comms**: send the science home | Packet order, compression, parity check; encode bits, decode Earth's reply | Final campaign score |
 
@@ -17,6 +17,11 @@ Every mission has the same six-stage loop (briefing → design → test → depl
 **Play:** https://itsermando.github.io/moonbase-mission-control/
 
 ## Features
+- **Explained for newcomers:** hover, focus or tap any dotted word or **i** badge for a one-line explanation; common space words (periapsis, Δv, swath, parity …) get one automatically on every page (`shared/explain.js`). Mission 1 has a guided CAPCOM tutorial that points at each control and waits for you to try it (`missions/orbit/tutorial-steps.js`, `shared/tutorial.js`).
+- **Consequences you can see:** in the assembly bay the 3D satellite rebuilds with every part, and consequence chains show how each part changes mass → fuel → rocket, power and money. In orbit design a simulated camera view gets blockier as the orbit rises. Debriefs show a WHAT / HOW / WHY tree and a choice → physics → result table with the formula behind each row.
+- **A real satellite trade-off:** a relay wants its slow, high point over the base; a camera or neutron detector wants to pass low over it. Instruments are modelled on real ones (LRO LROC and LEND, MRO HiRISE and SHARAD, MESSENGER MDIS, Dawn FC), and the pixel size is computed from the height at which the orbit passes over the landing site (`missions/orbit/instruments.js`).
+- **Campaign summary** (`summary.html`): after Mission 3, one page shows how each mission fed the next, a WHAT / HOW / WHY tree of the whole campaign, your decisions and the science behind them. Printable.
+- **Operation Deep Link** (`missions/comms/connection.html`): Jeongha's Deep Space Network training game — encode an image, find the spacecraft's signal, and repair errors by majority voting — linked from Mission 3.
 - **Worlds:** the Moon (main campaign, Shackleton crater from NASA LRO LOLA data), Mars (bonus campaign, Jezero crater from NASA Mars Trek), and Mercury, Ceres and Vesta as orbit challenges. Globes use NASA global maps, and the Moon and Mars can switch between imagery and laser-altimeter elevation (LRO LOLA, MGS MOLA).
 - **Real NASA 3D models:** when you configure the spacecraft, the game shows NASA’s own models: an assembled satellite from the NASA Satellite Kit that changes with your antenna and solar-wing choice, the launcher class (Jupiter-C, Atlas, Saturn V), the real orbiter for each world (LRO, MRO, MESSENGER, Dawn), real rovers and landers (Perseverance, Opportunity, RASSOR, Apollo Lunar Module, Viking), and the Deep Space Network dishes and TDRS relay. See `shared/models.js` and `shared/models/`.
 - **3D:** three.js globes for orbit design and a 3D rover view on the real terrain, with a 2D map fallback.
@@ -47,9 +52,9 @@ Open http://localhost:5173 for the landing page, or http://localhost:5173/hub.ht
 | `hub.html`, `shared/hub.js` | Mission control hub: globe, campaign track, worlds, crew, class mode |
 | `profile.html`, `about.html` | Profiles; Briefing Room for judges and teachers |
 | `shared/` | HUD shell, profiles, campaign hand-offs, worlds and constants, globe, NASA model viewer (`models.js`), graphics quality (`perf.js`), Ask CAPCOM (`ask.js`, `capcom-kb.js`), sounds, styles |
-| `missions/orbit/` | Mission 1: two-body orbit physics (`orbit.js`), catalogue (`data.js`), screens (`ui.js`) |
+| `missions/orbit/` | Mission 1: two-body orbit physics (`orbit.js`), catalogue (`data.js`), instruments (`instruments.js`), screens (`ui.js`, `bay.js`, `report.js`), tutorial |
 | `missions/rover/` | Mission 2: worlds and terrain, engine, events, CAPCOM, screens, 3D scene |
-| `missions/comms/` | Mission 3: signal maths (`codec.js`) and screens (`comms.js`) |
+| `missions/comms/` | Mission 3: signal maths (`codec.js`) and screens (`comms.js`); Operation Deep Link training (`connection.*`, by Jeongha) |
 | `scripts/` | Rebuild terrain and planet textures from NASA Trek tiles |
 | `tests/` | Automated tests |
 
@@ -68,7 +73,7 @@ Sunlight, ice amounts, Earth visibility, Mars heights, noise and costs are simpl
 The soundtrack is inspired by the Voyager Golden Record, but the record's music is still under copyright, so the game plays an original ambient score generated live with Web Audio (`shared/music.js`). Short NASA public-domain recordings from the nasa.gov audio collection play at key moments: "The Eagle has landed" and "One small step" (Apollo 11) and the Sputnik 1 beeps (`shared/audio/`). The Golden Record picture is NASA/JPL-Caltech PIA14113.
 
 ## Team and credits
-Team Cat on Moon: **Jeongha, David and Emad**. The idea came from a brainstorm by the three of us; Mission 3's signal-encoding game is based on Jeongha's design.
+Team Cat on Moon: **Jeongha, David and Emad**. The idea came from a brainstorm by the three of us; Mission 3's signal-encoding game is based on Jeongha's design, and Operation Deep Link is Jeongha's.
 Software: three.js r170 (MIT) via jsDelivr. Cat illustrations and sound effects are original (drawn as SVG and generated with Web Audio).
 
 ## Use of AI

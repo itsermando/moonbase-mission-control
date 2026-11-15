@@ -5,6 +5,8 @@
 import * as O from './orbit.js';
 import * as D from './data.js';
 import { designMetrics, scoreParts, totalScore, launchReady } from './plan.js';
+import { instrumentSpecs } from './instruments.js';
+const sci = (d, world) => (d.ins.kind === 'none' ? null : instrumentSpecs(d.ins, d.el, world, { antennaRate: d.an.rate }));
 
 const HOURS = 72;
 const cache = {};
@@ -23,6 +25,8 @@ export function candidateOrbits(world, wid) {
   };
   for (const pr of D.PRESETS[wid]) add(pr.name, { ...pr.p });
   for (const pe of peris) for (const ap of apos) if (ap >= pe) for (const inc of [90, 60]) add('Custom orbit', { periAltKm: pe, apoAltKm: ap, incDeg: inc, argpDeg: argp });
+  // low point over the base: worse for the relay, but what a camera or neutron detector wants
+  for (const pe of peris.slice(0, 1)) for (const ap of apos) if (ap >= pe) add('Low pass over the base', { periAltKm: pe, apoAltKm: ap, incDeg: 90, argpDeg: (argp + 180) % 360 });
   return list;
 }
 
@@ -39,14 +43,14 @@ const orbitKey = (p) => [p.periAltKm, p.apoAltKm, p.incDeg, p.argpDeg].join('|')
  * Three different designs that pass every go / no-go check. Scores assume a capture burn right on target,
  * because the burn is the player's job; the sloppy score shows what a 12% apoapsis miss would cost.
  */
-export function designChoices(world, wid) {
+export function designChoices(world, wid, extra = {}) {
   const goal = D.GOALS[wid], all = [];
   for (const o of orbitsFor(world, wid)) {
     for (const rk of D.ROCKETS) for (const an of D.ANTENNAS) for (const pw of D.POWER) {
-      const sel = { rocket: rk.id, antenna: an.id, power: pw.id, p: o.p };
+      const sel = { ...extra, rocket: rk.id, antenna: an.id, power: pw.id, p: o.p };
       const d = designMetrics(sel, world, wid);
       if (!launchReady(d, o.p, wid)) continue;
-      all.push({ o, d, sel, score: totalScore(scoreParts(d, o.t, { err: 0 }, wid)), meets: o.t.coverage >= goal });
+      all.push({ o, d, sel, score: totalScore(scoreParts(d, o.t, { err: 0, science: sci(d, world) }, wid)), meets: o.t.coverage >= goal });
     }
   }
   let pool = all.filter((x) => x.meets);
@@ -56,8 +60,8 @@ export function designChoices(world, wid) {
 
   const usedDesigns = new Set(), usedOrbits = new Set();
   const dkey = (x) => `${orbitKey(x.o.p)}|${x.sel.rocket}|${x.sel.antenna}|${x.sel.power}`;
-  const take = (cmp) => {
-    const free = pool.filter((x) => !usedDesigns.has(dkey(x)));
+  const take = (cmp, from = pool) => {
+    const free = from.filter((x) => !usedDesigns.has(dkey(x)));
     const fresh = free.filter((x) => !usedOrbits.has(orbitKey(x.o.p)));
     const c = (fresh.length ? fresh : free).sort(cmp)[0];
     if (c) { usedDesigns.add(dkey(c)); usedOrbits.add(orbitKey(c.o.p)); }
@@ -68,10 +72,11 @@ export function designChoices(world, wid) {
     ['budget', 'Lowest cost', take((a, b) => a.d.cost - b.d.cost || b.score - a.score), false],
     ['contact', 'Most contact', take((a, b) => b.o.t.coverage - a.o.t.coverage || a.d.cost - b.d.cost), false],
   ];
+  if (extra.instrument && extra.instrument !== 'none') picks.push(['science', 'Sharpest science', take((a, b) => sci(a.d, world).gsdM - sci(b.d, world).gsdM || b.score - a.score, all), false]); // may miss the contact goal: that is the trade-off
   const pct = (x) => `${Math.round(x * 100)}%`;
   const choices = picks.filter(([, , c]) => c).map(([id, title, c, recommended]) => {
-    const sloppy = totalScore(scoreParts(c.d, c.o.t, { err: 0.12 }, wid));
-    const why = { balanced: 'Highest predicted score of every design that works.', budget: `Cheapest design that ${relaxed ? 'can fly' : 'still meets the contact goal'}.`, contact: 'Keeps the base in touch the longest.' }[id];
+    const sloppy = totalScore(scoreParts(c.d, c.o.t, { err: 0.12, science: sci(c.d, world) }, wid));
+    const why = { balanced: 'Highest predicted score of every design that works.', budget: `Cheapest design that ${relaxed ? 'can fly' : 'still meets the contact goal'}.`, contact: 'Keeps the base in touch the longest.', science: 'Flies lowest, so the instrument sees the most detail; the relay pays for it.' }[id];
     return {
       id, title, recommended, why, orbitName: c.o.name, design: c.sel,
       metrics: { cost: c.d.cost, capKg: c.d.cap, wetKg: Math.round(c.d.wet), dvMs: Math.round(c.d.dvNeed * 1000), fuelKg: Math.round(c.d.prop),
@@ -79,6 +84,7 @@ export function designChoices(world, wid) {
       summary: `${c.d.rk.name}, ${c.d.an.name.toLowerCase()}, ${c.d.pw.name.toLowerCase()}. ${c.o.name}: ${Math.round(c.sel.p.periAltKm)} × ${Math.round(c.sel.p.apoAltKm)} km, inclination ${c.sel.p.incDeg}°.`,
       branches: [
         { text: `Burn on target: contact ${pct(c.o.t.coverage)}, cost $${c.d.cost}M, score about ${c.score}`, tone: 'good' },
+        ...(sci(c.d, world) ? [{ text: `Instrument sees ${sci(c.d, world).gsdM < 1 ? Math.round(sci(c.d, world).gsdM * 100) + ' cm' : Math.round(sci(c.d, world).gsdM) + ' m'} pixels (goal ${sci(c.d, world).goalGsdM} m)`, tone: sci(c.d, world).goalMet ? 'good' : 'bad' }] : []),
         { text: `Burn 12% off the plan: score about ${sloppy}`, tone: 'warn' },
       ],
     };
@@ -88,7 +94,7 @@ export function designChoices(world, wid) {
 
 /** What each response to the solar storm would cost, computed from this orbit's actual contact windows. */
 export function stormForecast(t, startH, d, wid, run = {}) {
-  const S = D.STORM;
+  const S = { ...D.STORM, hitChance: run.hitChance ?? d.sh?.hit ?? D.STORM.hitChance };
   const score = (tl) => totalScore(scoreParts(d, tl, run, wid));
   const before = score(t);
   const after = (durH) => { const te = O.withOutage(t, startH, durH); return { lostH: te.outage.lostH, score: score(te) }; };
@@ -101,7 +107,7 @@ export function stormForecast(t, startH, d, wid, run = {}) {
 
 /** The forecast as decision-tree options (see shared/tree.js). */
 export function stormOptions(f) {
-  const S = D.STORM, h1 = (x) => x.toFixed(1), e = f.expected;
+  const S = { ...D.STORM, hitChance: f.hit }, h1 = (x) => x.toFixed(1), e = f.expected;
   const safeBest = e.safeScore >= e.rideScore;
   return [
     { id: 'safe', title: `Safe mode for ${S.safeH} h`, recommended: safeBest, button: 'Order safe mode',
