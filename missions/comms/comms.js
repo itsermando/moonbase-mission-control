@@ -1,5 +1,5 @@
 // Mission 3: Comms. Send the rover's science home through the relay, then decode Earth's reply.
-// Game design based on Jeongha's signal-encoding mission (O/X bit typing).
+// Game design based on Jeongha's signal-encoding mission (O/X bit typing) and her Operation Deep Link mini-games (dsn.js).
 import * as C from './codec.js';
 import { mountShell, celebrate, coachOnce } from '../../shared/shell.js';
 import { getWorld, getWorldId, relaySchedule, roverPackets, saveMission, campaignScore } from '../../shared/campaign.js';
@@ -11,13 +11,15 @@ import { playClip } from '../../shared/music.js';
 import { treeHTML } from '../../shared/tree.js';
 import { aiNote } from '../../shared/llm.js';
 import { mountViewer } from '../../shared/models.js';
+import { groundStation, scoreDSN } from './dsn.js';
+import { isMuted } from '../../shared/fx.js';
 
 const $ = (s) => document.querySelector(s);
 const world = getWorld();
 const wid = getWorldId() === 'mars' ? 'mars' : 'moon';
 const relay = relaySchedule(wid);
 const { packets: PACKETS, assumed } = roverPackets(wid);
-const STAGES = ['Briefing', 'Plan', 'Downlink', 'Uplink', 'Debrief'];
+const STAGES = ['Briefing', 'Plan', 'Downlink', 'Ground station', 'Uplink', 'Debrief'];
 const RATE_X = { 1: 1, 2: 1.15, 4: 1.3 };
 const WINDOW_S = Math.round(Math.min(80, Math.max(30, 25 + relay.windowH * 5)) * (RATE_X[relay.dataRate] || 1));
 const S = { stage: 0, order: PACKETS.map((p) => p.id), skip: new Set(), comp: 'smart', check: 'parity', dl: null, ul: null };
@@ -39,7 +41,7 @@ let mvs = []; // viewers of real NASA hardware (shared/models.js)
 const killMv = () => { mvs.forEach((v) => v.dispose()); mvs = []; };
 const showReal = (title, ids, height = 210) => { killMv(); $('#side').insertAdjacentHTML('beforeend', '<section class="panel" id="mv-real"></section>'); mvs.push(mountViewer($('#mv-real'), ids, { title, height })); };
 function stageBar() { $('#stages').innerHTML = STAGES.map((s, n) => `<span class="stage ${n < S.stage ? 'done' : n === S.stage ? 'now' : ''}">${n + 1} ${s}</span>`).join(''); }
-function go(n) { if (n === 2 && S.stage !== 2) playClip('sputnik', 0.45); S.stage = n; clearInterval(S.timer); killMv(); const m = $('#main'); m.onclick = null; m.onchange = null; document.onkeydown = null; render(); window.scrollTo({ top: 0 }); }
+function go(n) { if (n === 2 && S.stage !== 2) playClip('sputnik', 0.45); S.stopGs?.(); S.stopGs = null; S.stage = n; clearInterval(S.timer); killMv(); const m = $('#main'); m.onclick = null; m.onchange = null; document.onkeydown = null; render(); window.scrollTo({ top: 0 }); }
 
 /* ---------- 1 Briefing ---------- */
 function briefing() {
@@ -57,7 +59,7 @@ function briefing() {
     ${assumed ? '<p class="lastline">No rover mission flown yet, so you are sending a standard test packet set. Fly Mission 2 to send your own science.</p>' : '<p class="lastline good">These packets come from your Mission 2 rover.</p>'}
     ${relay.assumed ? '<p class="lastline">No relay orbit flown yet: you have a standard contact window. A better Mission 1 orbit gives you more time.</p>' : `<p class="lastline good">Your Mission 1 relay gives ${relay.windowH.toFixed(1)} h contacts and a data rate of ×${relay.dataRate}, which sets your time here.</p>`}
     <div class="row"><button class="primary big" id="next">Plan the downlink</button></div>
-    <p class="dl-link"><a href="./connection.html"><b>Training: Operation Deep Link</b></a> <span class="small muted">Practise like a DSN operator first: encode data, find the spacecraft’s signal and fix errors by majority voting. Designed by Jeongha.</span></p>
+    <p class="dl-link"><b>New in this mission: the Ground station.</b> <span class="small muted">After the downlink you work at a NASA Deep Space Network dish: point the antenna, lock the sync, find your signal by ear and rebuild the rover’s photo. Mini-games by Jeongha. Want more? Play her full <a href="./connection.html">Operation Deep Link</a>.</span></p>
     <p class="small muted">Mission design by Jeongha (Cat on Moon). The station on duty is simplified from the real Deep Space Network schedule.</p></section>`;
   $('#side').innerHTML = whiskers(['Every choice has a cost: compression saves time but loses detail; error checks add bits but catch damage.', 'Signals are slow to cross space. You can’t ask Earth for help instantly.']);
   showReal('Real NASA hardware on this link', ['tdrs', 'dsn-70m', 'dsn-34m']);
@@ -196,8 +198,8 @@ function uplink() {
   const send = () => {
     const a = $('#answer').value.trim().toUpperCase(); if (!a) { $('#ul-msg').textContent = 'Type the word first.'; return; }
     ul.tries++;
-    if (a === ul.word) { ul.solved = true; sfx.good(); toast(`Command “${ul.word}” received. The rover obeys!`, 'good'); setTimeout(() => go(4), 700); }
-    else { sfx.bad(); $('#ul-msg').textContent = `Not quite. ${ul.tries >= 3 ? `The word was ${ul.word}.` : 'Check each group again.'}`; if (ul.tries >= 3) setTimeout(() => go(4), 1400); }
+    if (a === ul.word) { ul.solved = true; sfx.good(); toast(`Command “${ul.word}” received. The rover obeys!`, 'good'); setTimeout(() => go(5), 700); }
+    else { sfx.bad(); $('#ul-msg').textContent = `Not quite. ${ul.tries >= 3 ? `The word was ${ul.word}.` : 'Check each group again.'}`; if (ul.tries >= 3) setTimeout(() => go(5), 1400); }
   };
   $('#send').onclick = send;
   $('#hint').onclick = () => { if (ul.hint < ul.word.length - 1) { ul.hint++; sfx.click(); uplink(); } };
@@ -212,26 +214,30 @@ function debrief() {
   const got = Object.values(dl.packets).filter((x) => x.state === 'arrived').reduce((a, x) => a + x.p.value * compC.valueX, 0);
   const ruined = Object.values(dl.packets).filter((x) => x.state === 'damaged');
   const unsent = Object.values(dl.packets).filter((x) => x.state === 'waiting' || x.state === 'sending');
-  const sci = Math.round(60 * Math.min(1, got / maxValue));
-  const acc = Math.max(0, 15 - dl.mistakes * 2);
-  const dec = ul.solved ? Math.max(0, (ul.tries === 1 ? 15 : 10) - ul.hint * 5) : 0;
-  const tim = Math.round(10 * Math.min(1, dl.time / (WINDOW_S * 0.25)));
-  const score = sci + acc + dec + tim;
-  const items = [['Science delivered', 60, sci, `${Math.round(got)} of ${maxValue} science value reached Earth intact.`],
-    ['Typing accuracy', 15, acc, `${dl.mistakes} wrong key${dl.mistakes === 1 ? '' : 's'}.`],
-    ['Decoding', 15, dec, ul.solved ? `Decoded “${ul.word}” on try ${ul.tries}${ul.hint ? ` with ${ul.hint} hint${ul.hint > 1 ? 's' : ''}` : ''}.` : `The command was “${ul.word}”.`],
-    ['Time left', 10, tim, `${dl.time} s of the window left.`]];
+  const sci = Math.round(50 * Math.min(1, got / maxValue));
+  const acc = Math.max(0, 10 - dl.mistakes * 2);
+  const gs = S.gs || { stationWrong: 0, syncMiss: 5, signalWrong: 0, signalTimeout: true, photoWrong: 6 }, gsp = scoreDSN(gs);
+  const dec = ul.solved ? Math.max(0, (ul.tries === 1 ? 12 : 8) - ul.hint * 4) : 0;
+  const tim = Math.round(8 * Math.min(1, dl.time / (WINDOW_S * 0.25)));
+  const score = sci + acc + gsp.total + dec + tim;
+  const items = [['Science delivered', 50, sci, `${Math.round(got)} of ${maxValue} science value reached Earth intact.`],
+    ['Typing accuracy', 10, acc, `${dl.mistakes} wrong key${dl.mistakes === 1 ? '' : 's'}.`],
+    ['Ground station', 20, gsp.total, `Antenna ${gs.stationWrong ? `on try ${gs.stationWrong + 1}` : 'first try'}, ${gs.syncMiss} sync miss${gs.syncMiss === 1 ? '' : 'es'}, signal ${gs.signalTimeout ? 'not found in time' : gs.signalWrong ? `found after ${gs.signalWrong} wrong lock${gs.signalWrong > 1 ? 's' : ''}` : 'found first try'}${gs.signalPeek ? ' (patterns shown)' : ''}, ${gs.photoWrong} wrong vote${gs.photoWrong === 1 ? '' : 's'} rebuilding the photo.`],
+    ['Decoding', 12, dec, ul.solved ? `Decoded “${ul.word}” on try ${ul.tries}${ul.hint ? ` with ${ul.hint} hint${ul.hint > 1 ? 's' : ''}` : ''}.` : `The command was “${ul.word}”.`],
+    ['Time left', 8, tim, `${dl.time} s of the window left.`]];
   const lessons = [];
   if (ruined.length) lessons.push(`${ruined.length} packet${ruined.length > 1 ? 's were' : ' was'} damaged by noise and nobody noticed. A parity bit per byte would have caught it. (Real missions use even stronger codes, like Reed-Solomon, that can also repair errors.)`);
   if (dl.resent) lessons.push(`Parity caught ${dl.resent} damaged byte${dl.resent > 1 ? 's' : ''} and you resent ${dl.resent > 1 ? 'them' : 'it'}. Error checks cost bits but save the data.`);
   if (unsent.length) lessons.push(`${unsent.length} packet${unsent.length > 1 ? 's' : ''} never left the rover. More compression, a better relay orbit (Mission 1) or a bigger antenna gives more time.`);
   if (S.comp === 'max') lessons.push('Maximum compression saved time but threw away a third of the detail. Scientists usually prefer fewer, better packets.');
+  if (gs.photoWrong) lessons.push('Majority voting: when a bit is sent three times, the value that arrives at least twice is almost always right. Real missions use stronger codes built on the same idea.');
+  if (gs.stationWrong) lessons.push('Earth turns 15° every hour, so the Deep Space Network hands a spacecraft from Goldstone to Canberra to Madrid as the day goes on.');
   if (!lessons.length) lessons.push('A clean downlink. Real missions plan every pass like this, because contact time is precious.');
   const badges = [];
   if (!ruined.length && !unsent.length) badges.push('Clean signal');
   if (ul.solved && ul.tries === 1 && !ul.hint) badges.push('Codebreaker');
   if (got / maxValue >= 0.8) badges.push('Data hero');
-  saveMission(wid, 'comms', { score, got: Math.round(got), maxValue, sent: chosen().length, total: PACKETS.length, ruined: ruined.length, decoded: ul.solved ? ul.word : null, comp: compC.name, check: check().name });
+  saveMission(wid, 'comms', { score, station: gs.station || null, gsPoints: gsp.total, got: Math.round(got), maxValue, sent: chosen().length, total: PACKETS.length, ruined: ruined.length, decoded: ul.solved ? ul.word : null, comp: compC.name, check: check().name });
   const award = awardRun({ mission: 'comms', world: wid, score, badges, summary: `${Math.round(got)}/${maxValue} science, decoded ${ul.solved ? ul.word : 'no'}`,
     decisions: [compC.name, check().name, `Sent ${chosen().length} of ${PACKETS.length} packets`] });
   celebrate(award); if (score >= 65) sfx.good(); else sfx.bad();
@@ -248,5 +254,12 @@ function debrief() {
   $('#again').onclick = (e) => { e.stopPropagation(); S.ul = null; go(1); };
 }
 
-function render() { stageBar(); [briefing, plan, downlink, uplink, debrief][S.stage](); }
+/* ---------- 4 Ground station (Jeongha's Operation Deep Link mini-games) ---------- */
+function ground() {
+  killMv();
+  S.stopGs = groundStation({ world, wid, whiskers, sfx, isMuted, photo: `../rover/assets/${wid === 'mars' ? 'mars-hillshade' : 'hillshade'}.png`,
+    onDone: (r) => { S.gs = r; toast('Ground station locked on. Now decode Earth’s reply.', 'good', 3000); go(4); } });
+}
+
+function render() { stageBar(); [briefing, plan, downlink, ground, uplink, debrief][S.stage](); }
 render();

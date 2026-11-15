@@ -105,6 +105,6 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
   .shell .track { gap: 2px; justify-content: space-between; }
   .shell .node .nm { display: none; }
   .shell .node.now:not(.hq):not(.sum) .nm { display: inline; }
-  .shell .track .link { width: 6px; }
+  .shell .track .link { display: none; }
   .shell .node { padding: 3px 6px 3px 3px; }
 }

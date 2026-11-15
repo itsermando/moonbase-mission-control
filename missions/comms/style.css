@@ -311,3 +311,14 @@
         padding: 14px 18px;
     }
 }
+
+/* Ground station (Jeongha's Deep Link mini-games) */
+.gs-steps { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; padding: 0; margin: 0; }
+.gs-steps li { font: 600 12px var(--mono, monospace); letter-spacing: .08em; text-transform: uppercase; padding: 4px 10px; border: 1px solid var(--line-2); color: var(--muted); }
+.gs-steps li.done { color: var(--good); border-color: rgba(57, 255, 159, .5); }
+.gs-steps li.now { color: #031018; background: var(--accent); border-color: var(--accent); }
+.gs-earth svg { width: 100%; max-width: 420px; display: block; margin: 0 auto; }
+.gs-sync { position: relative; height: 44px; border: 1px solid var(--line-2); background: rgba(0, 229, 255, .04); overflow: hidden; }
+.gs-zone { position: absolute; left: 38%; width: 24%; top: 0; bottom: 0; background: rgba(57, 255, 159, .15); border-left: 2px solid var(--good); border-right: 2px solid var(--good); }
+.gs-marker { position: absolute; top: 0; bottom: 0; width: 5px; left: 0; background: var(--accent); box-shadow: 0 0 12px var(--accent); }
+.gs-photo canvas { width: 100%; max-width: 480px; display: block; margin: 0 auto; border: 1px solid var(--accent); image-rendering: auto; }
