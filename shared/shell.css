@@ -97,3 +97,14 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
   .layout { padding: 12px; gap: 12px; }
   .hero { min-height: 0; }
 }
+/* HQ and Summary nodes bracket the mission track */
+.shell .node.hq .dot, .shell .node.sum .dot { font-size: 13px; background: transparent; border: 1px solid var(--line-2); color: var(--accent); }
+.shell .node.sum .dot { color: var(--gold, #ffd23f); }
+@media (max-width: 600px) { .shell .node.hq .nm, .shell .node.sum .nm { display: none; } }
+@media (max-width: 600px) {
+  .shell .track { gap: 2px; justify-content: space-between; }
+  .shell .node .nm { display: none; }
+  .shell .node.now:not(.hq):not(.sum) .nm { display: inline; }
+  .shell .track .link { width: 6px; }
+  .shell .node { padding: 3px 6px 3px 3px; }
+}

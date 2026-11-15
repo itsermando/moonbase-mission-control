@@ -5,7 +5,7 @@ import { getWorld, getWorldId, getMission, campaignScore } from './campaign.js';
 import { MISSIONS } from './worlds.js';
 import { whyTree, chainHTML } from './explain.js';
 
-mountShell({ base: '', mission: null });
+mountShell({ base: '', mission: null, page: 'summary' });
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const world = getWorld(), wid = getWorldId();

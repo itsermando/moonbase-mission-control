@@ -11,7 +11,7 @@ import { aiEnabled, setAiEnabled } from './llm.js';
 const $ = (s) => document.querySelector(s);
 let globe = null, layer = 'imagery';
 
-mountShell({ base: '', mission: null });
+mountShell({ base: '', mission: null, page: 'hub' });
 {
   const pm = document.getElementById('play-music');
   const label = () => { if (pm) pm.textContent = isMusicOn() && isPlaying() ? 'Stop the soundtrack' : 'Play the soundtrack'; };
@@ -22,8 +22,8 @@ mountShell({ base: '', mission: null });
 function hero() {
   const w = getWorld();
   const next = w.missions.find((m) => !getMission(w.id, m)) || w.missions[0];
-  $('#hero-text').innerHTML = `<p class="eyebrow">Cat on Moon presents</p>
-    <h1 class="hero-title">Moonbase Mission Control</h1>
+  $('#hero-text').innerHTML = `<p class="eyebrow">Mission Control · Cat on Moon presents</p>
+    <h1 class="hero-title">Lunevra</h1>
     <p class="hero-hook">Every choice has a cost.<br><span>Our game shows you why.</span></p>
     <p class="lead">A decision-based teaching game. Design a relay satellite, a rover and a radio link, fly them on real NASA maps, survive the surprises, and learn from every result.</p>
     <div class="row"><a href="${MISSIONS[next].href}"><button class="primary big">${getMission(w.id, w.missions[0]) ? 'Continue' : 'Start'} the ${w.name} campaign</button></a>

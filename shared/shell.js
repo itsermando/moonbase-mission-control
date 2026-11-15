@@ -40,10 +40,15 @@ export function renderShell() {
     return `<a class="node ${opts.mission === m ? 'now' : ''} m-${state}" href="${b}${M.href}" title="${M.long}${res ? ` · best ${res.best}` : ''}">
       <span class="dot">${M.n}</span><span class="nm">${M.title}</span>${res ? `<span class="medal ${res.medal}" aria-label="${MEDAL[res.medal]}"></span>` : ''}</a>`;
   }).join('<span class="link" aria-hidden="true"></span>');
+  const done = world.missions.filter((m) => getMission(world.id, m)).length;
+  const here = (p) => (opts.page === p ? 'now' : '');
+  const hq = `<a class="node hq ${here('hub')}" href="${b}hub.html" title="Mission Control: choose a world, crew and mission"><span class="dot" aria-hidden="true">⌂</span><span class="nm">HQ</span></a>`;
+  const sum = `<a class="node sum ${here('summary')} ${done === world.missions.length ? 'm-gold' : ''}" href="${b}summary.html" title="Campaign summary: how each mission fed the next (${done} of ${world.missions.length} flown)"><span class="dot" aria-hidden="true">★</span><span class="nm">Summary</span></a>`;
+  const navTrack = `${hq}<span class="link" aria-hidden="true"></span>${track}<span class="link" aria-hidden="true"></span>${sum}`;
   el.className = 'shell';
   el.innerHTML = `
-    <a class="logo" href="${b}hub.html" aria-label="Cat on Moon mission control">${catSVG(0, 34, { title: 'Cat on Moon' })}<span><b>Cat on Moon</b><small>Mission Control</small></span></a>
-    <nav class="track" aria-label="Campaign missions">${track}</nav>
+    <a class="logo" href="${b}index.html" aria-label="Lunevra home">${catSVG(0, 34, { title: 'Lunevra' })}<span><b>Lunevra</b><small>by Cat on Moon</small></span></a>
+    <nav class="track" aria-label="Campaign: HQ, missions and summary">${navTrack}</nav>
     <span class="chip world" title="${world.tierLabel}">${world.name}${isClassMode() ? ' · Class mode' : ''}</span>
     <span class="score-chip" title="Campaign score">${campaignScore(world.id)} <small>/ ${world.missions.length * 100}</small></span>
     <a class="crew" href="${b}profile.html" title="Crew and profiles">
